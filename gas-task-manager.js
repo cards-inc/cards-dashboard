@@ -64,6 +64,12 @@ function doGet(e) {
       return findSlackThread(e);
     } else if (action === 'scanMinutes') {
       result = scanMeetingMinutes();
+    } else if (action === 'getAutoTemplates') {
+      result = { status: 'ok', templates: getAutoTemplates() };
+    } else if (action === 'saveAutoTemplates') {
+      const data = JSON.parse(e.parameter.data || '{}');
+      saveAutoTemplatesData(data.templates || []);
+      result = { status: 'ok' };
     } else {
       result = { status: 'error', message: '不明なアクション: ' + action };
     }
@@ -467,6 +473,102 @@ function setupDailyAlertTrigger() {
     .create();
 
   Logger.log('毎朝9時のアラートトリガーを設定しました');
+}
+
+// ──────────────────────────────
+// AutoTemplates シート管理
+// ──────────────────────────────
+const AUTO_TEMPLATES_SHEET_NAME = 'AutoTemplates';
+
+function getOrCreateAutoSheet() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = ss.getSheetByName(AUTO_TEMPLATES_SHEET_NAME);
+  if (!sheet) {
+    sheet = ss.insertSheet(AUTO_TEMPLATES_SHEET_NAME);
+    sheet.getRange('A1').setValue('[]');
+  }
+  return sheet;
+}
+
+function getAutoTemplates() {
+  const sheet = getOrCreateAutoSheet();
+  const val = sheet.getRange('A1').getValue();
+  try { return JSON.parse(val || '[]'); } catch(_) { return []; }
+}
+
+function saveAutoTemplatesData(templates) {
+  const sheet = getOrCreateAutoSheet();
+  sheet.getRange('A1').setValue(JSON.stringify(templates));
+}
+
+// 毎朝9時に実行: nextDue <= 今日 のテンプレートからタスクを自動生成
+function runAutoTemplates() {
+  const today = new Date(); today.setHours(0,0,0,0);
+  const templates = getAutoTemplates();
+  let changed = false;
+
+  templates.forEach(function(tmpl, i) {
+    if (!tmpl.nextDue) return;
+    const nextDue = new Date(tmpl.nextDue); nextDue.setHours(0,0,0,0);
+    if (nextDue > today) return;
+
+    const lastGen = tmpl.lastGenerated ? new Date(tmpl.lastGenerated) : null;
+    if (lastGen) lastGen.setHours(0,0,0,0);
+    if (lastGen && lastGen >= nextDue) return; // 生成済み
+
+    const cats = Array.isArray(tmpl.categories) ? tmpl.categories
+      : (tmpl.category ? [tmpl.category] : ['']);
+    const sheet = getSheetByGid(TASK_SHEET_GID);
+
+    const dueDate = tmpl.ecEventLabel
+      ? subtractBusinessDaysGas(new Date(nextDue), 2)
+      : (function(){ var d = new Date(nextDue); d.setDate(d.getDate() + (tmpl.dueDays||7)); return d; })();
+    const entryDate = tmpl.ecEventLabel
+      ? subtractBusinessDaysGas(new Date(nextDue), 5)
+      : new Date(nextDue);
+
+    cats.forEach(function(cat) {
+      const nextNo = getLastNo(sheet) + 1;
+      const row = buildRow(nextNo, {
+        entryDate:     Utilities.formatDate(entryDate, 'Asia/Tokyo', 'yyyy-MM-dd'),
+        category:      cat,
+        status:        '未着手',
+        taskName:      tmpl.taskName,
+        detail:        tmpl.detail || '',
+        dueDate:       Utilities.formatDate(dueDate, 'Asia/Tokyo', 'yyyy-MM-dd'),
+        assignee:      tmpl.assignee || '',
+        workHours:     0,
+        completedDate: '',
+      });
+      sheet.appendRow(row);
+    });
+
+    templates[i].lastGenerated = nextDue.toISOString();
+    changed = true;
+  });
+
+  if (changed) saveAutoTemplatesData(templates);
+}
+
+function subtractBusinessDaysGas(date, days) {
+  const d = new Date(date);
+  let count = 0;
+  while (count < days) {
+    d.setDate(d.getDate() - 1);
+    const dow = d.getDay();
+    if (dow !== 0 && dow !== 6) count++;
+  }
+  return d;
+}
+
+// トリガー設定（GASエディタから1度だけ手動実行）
+function setupAutoTemplatesTrigger() {
+  ScriptApp.getProjectTriggers()
+    .filter(function(t) { return t.getHandlerFunction() === 'runAutoTemplates'; })
+    .forEach(function(t) { ScriptApp.deleteTrigger(t); });
+  ScriptApp.newTrigger('runAutoTemplates')
+    .timeBased().atHour(9).everyDays(1).inTimezone('Asia/Tokyo').create();
+  Logger.log('オートメーション自動実行トリガーを設定しました（毎朝9時）');
 }
 
 // 時間トリガーのセットアップ（Apps Script エディタから一度だけ手動実行）

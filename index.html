@@ -3023,10 +3023,34 @@ function updateAutoCatAll() {
   allCb.indeterminate = checkedCount > 0 && checkedCount < items.length;
 }
 
-function loadAutoTemplates() {
-  try { return JSON.parse(localStorage.getItem(AUTO_KEY) || '[]'); } catch { return []; }
+let _autoCache = null; // メモリキャッシュ（タブ内共有）
+
+async function loadAutoTemplates() {
+  if (_autoCache) return _autoCache;
+  if (GAS_URL) {
+    try {
+      const res = await gasJsonp('getAutoTemplates', {});
+      _autoCache = res.templates || [];
+      return _autoCache;
+    } catch(e) { console.warn('AutoTemplates取得失敗、ローカルフォールバック', e); }
+  }
+  try { _autoCache = JSON.parse(localStorage.getItem(AUTO_KEY) || '[]'); } catch { _autoCache = []; }
+  return _autoCache;
 }
-function saveAutoTemplates(list) {
+
+async function saveAutoTemplates(list) {
+  _autoCache = list;
+  // nextDue を各テンプレートに付与してから保存（GASが参照する）
+  const today = new Date(); today.setHours(0,0,0,0);
+  list.forEach(tmpl => {
+    try {
+      const next = nextDateAfter(tmpl.startDate, tmpl.repeat, new Date(today.getTime() - 86400000), tmpl.ecEventLabel);
+      tmpl.nextDue = next.toISOString();
+    } catch(_) {}
+  });
+  if (GAS_URL) {
+    try { await gasJsonp('saveAutoTemplates', { templates: list }); return; } catch(e) { console.warn('AutoTemplates保存失敗', e); }
+  }
   try { localStorage.setItem(AUTO_KEY, JSON.stringify(list)); } catch {}
 }
 
@@ -3765,9 +3789,10 @@ function ecEventClick(label, start, type) {
 
 
 
-function renderAutoTab() {
-  const templates = loadAutoTemplates();
+async function renderAutoTab() {
   const tbody = document.getElementById('autoTableBody');
+  tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text2);padding:32px">読み込み中…</td></tr>';
+  const templates = await loadAutoTemplates();
   if (!templates.length) {
     tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text2);padding:32px">テンプレートがありません</td></tr>';
     return;
@@ -3792,18 +3817,11 @@ function renderAutoTab() {
       </td>
     </tr>`;
   }).join('');
-
-  // 自動生成
-  templates.forEach((tmpl, i) => {
-    const next = nextDateAfter(tmpl.startDate, tmpl.repeat, new Date(today.getTime() - 86400000), tmpl.ecEventLabel);
-    if (next <= today && (!tmpl.lastGenerated || new Date(tmpl.lastGenerated) < next)) {
-      autoGenerateTask(i, next, false);
-    }
-  });
+  // 自動実行はGASトリガーが担当。ここでは実行しない。
 }
 
 async function runAutoTemplate(i) {
-  const templates = loadAutoTemplates();
+  const templates = await loadAutoTemplates();
   const tmpl = templates[i];
   if (!tmpl) return;
   const today = new Date(); today.setHours(0,0,0,0);
@@ -3850,7 +3868,7 @@ async function saveTask(newTask) {
 }
 
 async function autoGenerateTask(i, genDate, manual) {
-  const templates = loadAutoTemplates();
+  const templates = await loadAutoTemplates();
   const tmpl = templates[i];
   if (!tmpl) return;
   const cats = Array.isArray(tmpl.categories) ? tmpl.categories : (tmpl.category ? [tmpl.category] : ['']);
@@ -3887,7 +3905,7 @@ async function autoGenerateTask(i, genDate, manual) {
   }
 
   templates[i].lastGenerated = genDate.toISOString();
-  saveAutoTemplates(templates);
+  await saveAutoTemplates(templates);
   if (manual) {
     alert(`タスク「${tmpl.taskName}」を${cats.length}件生成しました。`);
     await loadData();
@@ -4108,7 +4126,7 @@ function closeAutoModal() {
   document.getElementById('autoModal').classList.remove('open');
 }
 
-function submitAutoForm() {
+async function submitAutoForm() {
   const taskName = document.getElementById('auto_taskName').value.trim();
   if (!taskName) { alert('タスク内容を入力してください。'); return; }
   const startDate = document.getElementById('auto_startDate').value;
@@ -4116,7 +4134,7 @@ function submitAutoForm() {
   if (!autoCatSelected.size) { alert('カテゴリを1つ以上選択してください。'); return; }
   if (!document.getElementById('auto_assignee').value) { alert('担当者を選択してください。'); return; }
 
-  const templates = loadAutoTemplates();
+  const templates = await loadAutoTemplates();
   const editIdx   = document.getElementById('auto_editIndex').value;
   const categories = [...autoCatSelected];
 
@@ -4152,18 +4170,20 @@ function submitAutoForm() {
     templates.push(baseTmpl);
   }
 
-  saveAutoTemplates(templates);
+  await saveAutoTemplates(templates);
+  _autoCache = null; // キャッシュをクリアして次回再取得
   closeAutoModal();
   renderAutoTab();
 }
 
-function deleteAutoTemplate() {
+async function deleteAutoTemplate() {
   const i = parseInt(document.getElementById('auto_editIndex').value);
   if (isNaN(i)) return;
-  const templates = loadAutoTemplates();
+  const templates = await loadAutoTemplates();
   if (!confirm(`「${templates[i]?.taskName}」を削除しますか？`)) return;
   templates.splice(i, 1);
-  saveAutoTemplates(templates);
+  await saveAutoTemplates(templates);
+  _autoCache = null;
   closeAutoModal();
   renderAutoTab();
 }
