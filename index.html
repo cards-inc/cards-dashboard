@@ -2957,6 +2957,53 @@ function postSlackReport() {
 loadData();
 
 // ──────────────────────────────
+// 自動リフレッシュ（5分ごと）
+// ──────────────────────────────
+const AUTO_REFRESH_MS = 5 * 60 * 1000;
+let _refreshTimer = null;
+let _countdownTimer = null;
+let _nextRefreshAt = null;
+
+function startAutoRefresh() {
+  stopAutoRefresh();
+  _nextRefreshAt = Date.now() + AUTO_REFRESH_MS;
+  _refreshTimer = setInterval(() => {
+    loadData(true);
+    _nextRefreshAt = Date.now() + AUTO_REFRESH_MS;
+  }, AUTO_REFRESH_MS);
+  startCountdown();
+}
+
+function stopAutoRefresh() {
+  if (_refreshTimer)   { clearInterval(_refreshTimer);   _refreshTimer   = null; }
+  if (_countdownTimer) { clearInterval(_countdownTimer); _countdownTimer = null; }
+}
+
+function startCountdown() {
+  if (_countdownTimer) clearInterval(_countdownTimer);
+  _countdownTimer = setInterval(() => {
+    const el = document.getElementById('lastUpdated');
+    if (!el || !_nextRefreshAt) return;
+    const remaining = Math.max(0, Math.ceil((_nextRefreshAt - Date.now()) / 1000));
+    const m = Math.floor(remaining / 60);
+    const s = remaining % 60;
+    const base = el.dataset.base || '';
+    el.textContent = `${base}　次回: ${m}:${String(s).padStart(2,'0')}`;
+  }, 1000);
+}
+
+// lastUpdated が更新されたタイミングでリフレッシュ開始
+new MutationObserver(() => {
+  const el = document.getElementById('lastUpdated');
+  if (!el) return;
+  const txt = el.textContent;
+  if (txt && !txt.includes('次回') && !txt.includes('読み込み') && !txt.includes('更新中')) {
+    el.dataset.base = txt;
+    startAutoRefresh();
+  }
+}).observe(document.getElementById('lastUpdated'), { childList: true, subtree: true, characterData: true });
+
+// ──────────────────────────────
 // オートメーション
 // ──────────────────────────────
 const AUTO_KEY = 'autoTemplates';
