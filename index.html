@@ -64,7 +64,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Hiragino Sans', 'Yu Goth
 .filter-chip button { background: none; border: none; color: #fff; cursor: pointer; font-size: 13px; line-height: 1; opacity: 0.8; padding: 0; }
 .filter-chip button:hover { opacity: 1; }
 .cb-filter-wrap { position: relative; flex-shrink: 0; }
-.cb-filter-btn { border: 1px solid var(--border); border-radius: 8px; padding: 7px 12px; font-size: 13px; background: var(--surface); color: var(--text); cursor: pointer; white-space: nowrap; display: inline-flex; align-items: center; gap: 6px; font-family: inherit; transition: border-color .15s, background .15s; }
+.cb-filter-btn { border: 1.5px solid var(--border); border-radius: 8px; padding: 7px 14px; font-size: 13px; font-weight: 600; background: var(--surface2,#f1f5f9); color: var(--text); cursor: pointer; white-space: nowrap; display: inline-flex; align-items: center; gap: 6px; font-family: inherit; transition: border-color .15s, background .15s, color .15s; box-shadow: 0 1px 3px rgba(0,0,0,.07); }
 .cb-filter-btn:hover { border-color: var(--primary); color: var(--primary); }
 .cb-filter-btn.active { border-color: var(--primary); color: var(--primary); }
 .cb-filter-btn.has-filter { border-color: var(--primary); background: var(--primary-light); color: var(--primary); font-weight: 600; }
@@ -1848,29 +1848,28 @@ function renderWBS(tasks, groupBy = 'category') {
   const barDefs = [];
   let currentTopPx = SECTION_HEAD_H;
 
+  // CSS背景（weekends/today帯 + 縦グリッド線）を1度だけ計算して全行で共有
+  const bgStops = [];
+  days.forEach((d, i) => {
+    const col = (i === todayIdx) ? '#fff5f5' : isNonWorkday(d) ? '#fafafa' : 'rgba(0,0,0,0)';
+    const l = i * COL_W, r = (i + 1) * COL_W;
+    bgStops.push(`${col} ${l}px`, `${col} ${r}px`);
+  });
+  const _bandsBg = `linear-gradient(to right,${bgStops.join(',')})`;
+  const _gridBg  = `repeating-linear-gradient(to right,transparent 0,transparent ${COL_W-1}px,#e2e8f0 ${COL_W-1}px,#e2e8f0 ${COL_W}px)`;
+  const _rowBg   = `background-image:${_gridBg},${_bandsBg};background-size:${totalW}px 100%;background-repeat:no-repeat`;
+
   // タスクセクションヘッダー行
   const taskHeadSpan = `<div style="width:${totalW}px;height:${SECTION_HEAD_H}px;background:#7c8fa1;display:flex;align-items:center;padding:0 16px;color:#fff;font-size:11px;font-weight:800;letter-spacing:.12em">TASKS</div>`;
   timelineRowsHTML += `<div class="wbs-trow ec-head" style="height:${SECTION_HEAD_H}px">${taskHeadSpan}</div>`;
 
   groups.forEach(g => {
     const CAT_H = 34, ROW_H = 40;
-    const catCells = days.map((d, i) => {
-      const isNonWork = isNonWorkday(d);
-      const isToday   = i === todayIdx;
-      const cls = isToday ? 'today-col' : isNonWork ? 'weekend' : '';
-      return `<div class="wbs-tcell ${cls}" style="width:${COL_W}px;height:${CAT_H}px"></div>`;
-    }).join('');
-    timelineRowsHTML += `<div class="wbs-trow cat" style="height:${CAT_H}px">${catCells}</div>`;
+    timelineRowsHTML += `<div class="wbs-trow cat" style="height:${CAT_H}px;${_rowBg}"></div>`;
     currentTopPx += CAT_H;
 
     validTasks.filter(t => t[groupKey] === g).forEach(t => {
-      const taskCells = days.map((d, i) => {
-        const isNonWork = isNonWorkday(d);
-        const isToday   = i === todayIdx;
-        const cls = isToday ? 'today-col' : isNonWork ? 'weekend' : '';
-        return `<div class="wbs-tcell ${cls}" style="width:${COL_W}px;height:${ROW_H}px"></div>`;
-      }).join('');
-      timelineRowsHTML += `<div class="wbs-trow" style="height:${ROW_H}px">${taskCells}</div>`;
+      timelineRowsHTML += `<div class="wbs-trow" style="height:${ROW_H}px;${_rowBg}"></div>`;
 
       // バー定義
       const start = t.entryDate || t.dueDate;
@@ -2038,10 +2037,7 @@ function openEditBar(taskIdx) {
 
   // No列：番号＋アクションボタン
   cells[off+0].onclick = e => e.stopPropagation();
-  cells[off+0].innerHTML = `<div style="display:flex;flex-direction:column;align-items:center;gap:4px">
-    <span style="font-size:11px;color:var(--text2)">${t.no}</span>
-    <button onclick="event.stopPropagation();deleteExpandTask(${taskIdx})" style="font-size:11px;padding:4px 10px;border:none;border-radius:6px;background:var(--danger,#ef4444);color:#fff;cursor:pointer;white-space:nowrap;font-weight:700">削除</button>
-  </div>`;
+  cells[off+0].innerHTML = `<button onclick="event.stopPropagation();deleteExpandTask(${taskIdx})" style="font-size:12px;padding:6px 12px;border:none;border-radius:6px;background:var(--danger,#ef4444);color:#fff;cursor:pointer;white-space:nowrap;font-weight:700;width:100%">削除</button>`;
 
   // 記載日：表示のまま
   cells[off+1].onclick = e => e.stopPropagation();
@@ -2961,35 +2957,14 @@ loadData();
 // ──────────────────────────────
 const AUTO_REFRESH_MS = 5 * 60 * 1000;
 let _refreshTimer = null;
-let _countdownTimer = null;
-let _nextRefreshAt = null;
 
 function startAutoRefresh() {
-  stopAutoRefresh();
-  _nextRefreshAt = Date.now() + AUTO_REFRESH_MS;
-  _refreshTimer = setInterval(() => {
-    loadData(true);
-    _nextRefreshAt = Date.now() + AUTO_REFRESH_MS;
-  }, AUTO_REFRESH_MS);
-  startCountdown();
+  if (_refreshTimer) clearInterval(_refreshTimer);
+  _refreshTimer = setInterval(() => { loadData(true); }, AUTO_REFRESH_MS);
 }
 
 function stopAutoRefresh() {
-  if (_refreshTimer)   { clearInterval(_refreshTimer);   _refreshTimer   = null; }
-  if (_countdownTimer) { clearInterval(_countdownTimer); _countdownTimer = null; }
-}
-
-function startCountdown() {
-  if (_countdownTimer) clearInterval(_countdownTimer);
-  _countdownTimer = setInterval(() => {
-    const el = document.getElementById('lastUpdated');
-    if (!el || !_nextRefreshAt) return;
-    const remaining = Math.max(0, Math.ceil((_nextRefreshAt - Date.now()) / 1000));
-    const m = Math.floor(remaining / 60);
-    const s = remaining % 60;
-    const base = el.dataset.base || '';
-    el.textContent = `${base}　次回: ${m}:${String(s).padStart(2,'0')}`;
-  }, 1000);
+  if (_refreshTimer) { clearInterval(_refreshTimer); _refreshTimer = null; }
 }
 
 // lastUpdated が更新されたタイミングでリフレッシュ開始
@@ -2997,8 +2972,7 @@ new MutationObserver(() => {
   const el = document.getElementById('lastUpdated');
   if (!el) return;
   const txt = el.textContent;
-  if (txt && !txt.includes('次回') && !txt.includes('読み込み') && !txt.includes('更新中')) {
-    el.dataset.base = txt;
+  if (txt && !txt.includes('読み込み') && !txt.includes('更新中')) {
     startAutoRefresh();
   }
 }).observe(document.getElementById('lastUpdated'), { childList: true, subtree: true, characterData: true });
