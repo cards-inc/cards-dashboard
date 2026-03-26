@@ -697,11 +697,6 @@ tbody td { padding: 11px 16px; font-size: 13px; vertical-align: middle; }
           <button class="clear-btn" onclick="buildPreview()">プレビュー更新</button>
         </div>
         <pre id="jikkoPreviewText" style="background:var(--surface2);border-radius:8px;padding:14px;font-size:13px;line-height:1.8;white-space:pre-wrap;word-break:break-word;font-family:inherit;min-height:80px"></pre>
-        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:14px">
-          <input type="text" id="jikkoThreadTs" class="filter-select" style="flex:1;min-width:200px;font-family:monospace;font-size:12px" placeholder="スレッドTS（自動検出 or 手動入力）" oninput="saveThreadTs()">
-          <button class="clear-btn" id="detectBtn" onclick="detectSlackThread()">自動検出</button>
-          <button class="refresh-btn" style="background:#4a154b" onclick="postSlackReport()">Slackに投稿</button>
-        </div>
       </div>
 
     </div><!-- /jikkoReportArea -->
@@ -2732,7 +2727,6 @@ document.addEventListener('keydown', e => {
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbwuR1t_-Ng9mxLOXocYvfzqlNeWtSL7_8qRnfdA7StJkUF7VWecy78iLb7PeLnP_Dvv/exec';
 
 function renderJikkoTab() {
-  loadThreadTs();
   refreshPersonSelects();
   if (!document.getElementById('jikkoDate').value)
     document.getElementById('jikkoDate').value = new Date().toISOString().split('T')[0];
@@ -2899,72 +2893,6 @@ document.addEventListener('input', e => {
     buildPreview();
 });
 
-function saveThreadTs() {
-  localStorage.setItem('slack_thread_ts', document.getElementById('jikkoThreadTs').value.trim());
-}
-function loadThreadTs() {
-  const v = localStorage.getItem('slack_thread_ts') || '';
-  document.getElementById('jikkoThreadTs').value = v;
-}
-
-function detectSlackThread() {
-  if (!GAS_URL) { alert('GAS_URL が設定されていません。'); return; }
-  const btn = document.getElementById('detectBtn');
-  btn.textContent = '検索中...';
-  btn.disabled = true;
-  gasJsonp('findThread', {})
-    .then(data => {
-      if (data.thread_ts) {
-        document.getElementById('jikkoThreadTs').value = data.thread_ts;
-        saveThreadTs();
-        btn.textContent = '検出済み';
-        setTimeout(() => { btn.textContent = '自動検出'; btn.disabled = false; }, 2000);
-      } else {
-        const debug = data.debug || {};
-        let msg = `今日の業務報告スレッドが見つかりませんでした。\n検索キーワード: ${debug.today || '?'}\n取得件数: ${debug.count ?? '?'}件`;
-        if (debug.sample && debug.sample.length) msg += '\n\n直近メッセージ:\n' + debug.sample.join('\n');
-        alert(msg);
-        btn.textContent = '自動検出';
-        btn.disabled = false;
-      }
-    })
-    .catch(e => {
-      alert('検出に失敗しました: ' + e.message);
-      btn.textContent = '自動検出';
-      btn.disabled = false;
-    });
-}
-
-// ──────────────────────────────
-// Slack業務報告投稿（GAS経由）
-// ──────────────────────────────
-function postSlackReport() {
-  if (!GAS_URL) {
-    alert('GAS_URL が設定されていません。');
-    return;
-  }
-  const text     = (document.getElementById('jikkoPreviewText').textContent || '').trim();
-  const threadTs = document.getElementById('jikkoThreadTs').value.trim();
-
-  if (!text)     { alert('プレビューが空です。先に「読み込む」を押してください。'); return; }
-  if (!threadTs) { alert('スレッドTSを入力してください。'); return; }
-
-  const btn = document.querySelector('[onclick="postSlackReport()"]');
-  btn.disabled = true;
-  btn.textContent = '投稿中...';
-
-  gasJsonp('postSlack', { text, thread_ts: threadTs })
-    .then(() => {
-      alert('Slackスレッドに投稿しました。');
-    })
-    .catch(e => {
-      alert('投稿に失敗しました: ' + e.message);
-    })
-    .finally(() => {
-      btn.disabled = false;
-      btn.textContent = 'Slackに投稿';
-    });
-}
 
 loadData();
 
