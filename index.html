@@ -1789,6 +1789,7 @@ function switchTab(name) {
   if (name === 'wbs')   { initWbsFilters(); if (document.getElementById('ecEventPanel')?.style.display !== 'none') renderEcEventPanel(); }
   if (name === 'jikko') renderJikkoTab();
   if (name === 'admin') initAdminTab();
+  try { localStorage.setItem('activeTab', name); } catch(_) {}
 }
 
 // ──────────────────────────────
@@ -2991,6 +2992,12 @@ async function postToSlack() {
 
 
 loadData();
+
+// 前回開いていたタブを復元
+try {
+  const savedTab = localStorage.getItem('activeTab');
+  if (savedTab && ['dashboard','wbs','jikko','admin'].includes(savedTab)) switchTab(savedTab);
+} catch(_) {}
 
 // ──────────────────────────────
 // 自動リフレッシュ（5分ごと）
