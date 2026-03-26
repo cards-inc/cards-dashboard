@@ -2973,7 +2973,18 @@ async function loadAutoTemplates() {
   if (GAS_URL) {
     try {
       const res = await gasJsonp('getAutoTemplates', {});
-      _autoCache = res.templates || [];
+      const gasTemplates = res.templates || [];
+      // GASシートが空でlocalStorageにデータがある場合は自動マイグレーション
+      if (gasTemplates.length === 0) {
+        let local = [];
+        try { local = JSON.parse(localStorage.getItem(AUTO_KEY) || '[]'); } catch {}
+        if (local.length > 0) {
+          await gasJsonp('saveAutoTemplates', { templates: local });
+          _autoCache = local;
+          return _autoCache;
+        }
+      }
+      _autoCache = gasTemplates;
       return _autoCache;
     } catch(e) { console.warn('AutoTemplates取得失敗、ローカルフォールバック', e); }
   }
