@@ -3766,52 +3766,63 @@ function saveEcEvents(evs) {
   if (GAS_URL) gasJsonp('replaceEcEvents', { events: evs }).catch(e => console.warn('EC events sync:', e));
 }
 
-// 起動時にシートから直接CSV読み込みでECイベントを取得（GAS不要）
-async function syncEcEventsFromSheet() {
-  try {
-    const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&gid=${EC_EVENTS_GID}&nocache=${Date.now()}`;
-    const res = await fetch(url);
-    if (!res.ok) throw new Error('シート読み込みエラー: ' + res.status);
-    const csv = await res.text();
-    const rows = csv.split('\n').slice(1); // 1行目（セクションヘッダー）をスキップ
-    const events = [];
-    rows.forEach(row => {
-      // CSV解析（ダブルクォート対応）
-      const cells = [];
-      let cur = '', inQ = false;
-      for (let i = 0; i < row.length; i++) {
-        if (row[i] === '"') { inQ = !inQ; }
-        else if (row[i] === ',' && !inQ) { cells.push(cur.trim()); cur = ''; }
-        else { cur += row[i]; }
+// 起動時にシートからJSONP経由でECイベントを取得（file://でも動作）
+function syncEcEventsFromSheet() {
+  const cbName = '_ecCb_' + Date.now();
+  const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json;responseHandler:${cbName}&gid=${EC_EVENTS_GID}&nocache=${Date.now()}`;
+
+  const timer = setTimeout(() => {
+    delete window[cbName];
+    document.getElementById('_ecScript')?.remove();
+    console.warn('EC events sheet sync timeout');
+  }, 10000);
+
+  window[cbName] = function(json) {
+    clearTimeout(timer);
+    delete window[cbName];
+    document.getElementById('_ecScript')?.remove();
+    try {
+      if (json.status !== 'ok') throw new Error(json.errors?.[0]?.message || 'gvizエラー');
+      const rows = json.table.rows || [];
+      const events = [];
+      const get = (row, i) => row.c?.[i]?.v ?? '';
+      const fmtD = v => { if (!v) return ''; if (typeof v === 'string' && v.match(/Date\(/)) { const m = v.match(/Date\((\d+),(\d+),(\d+)\)/); if (m) return `${m[1]}-${String(+m[2]+1).padStart(2,'0')}-${m[3].padStart(2,'0')}`; } return String(v); };
+
+      // Row0=セクションヘッダー, Row1+=データ（B=1楽天,C=2開始,D=3終了 / F=5Amazon,G=6開始,H=7終了）
+      for (let i = 1; i < rows.length; i++) {
+        const r = rows[i];
+        const rLabel = String(get(r,1)||'').trim(), rStart = fmtD(get(r,2)), rEnd = fmtD(get(r,3));
+        const aLabel = String(get(r,5)||'').trim(), aStart = fmtD(get(r,6)), aEnd = fmtD(get(r,7));
+        if (rLabel && rStart && rLabel !== 'イベント名') {
+          const def = EC_AUTO_EVENTS.find(d => d.display === rLabel || d.keywords?.some(k => rLabel.includes(k)));
+          events.push({ label: rLabel, start: rStart, end: rEnd || rStart, color: def?.color || '#bf1515', type: 'rakuten' });
+        }
+        if (aLabel && aStart && aLabel !== 'イベント名') {
+          const def = EC_AUTO_EVENTS.find(d => d.display === aLabel || d.keywords?.some(k => aLabel.includes(k)));
+          events.push({ label: aLabel, start: aStart, end: aEnd || aStart, color: def?.color || '#e07b00', type: 'amazon' });
+        }
       }
-      cells.push(cur.trim());
-      // B=1,C=2,D=3 → 楽天 / F=5,G=6,H=7 → Amazon
-      const rLabel = cells[1], rStart = cells[2], rEnd = cells[3];
-      const aLabel = cells[5], aStart = cells[6], aEnd = cells[7];
-      if (rLabel && rStart && rLabel !== '楽天市場' && rLabel !== 'イベント名') {
-        const def = EC_AUTO_EVENTS.find(d => d.display === rLabel || d.keywords?.some(k => rLabel.includes(k)));
-        events.push({ label: rLabel, start: rStart, end: rEnd || rStart, color: def?.color || '#bf1515', type: 'rakuten' });
+      if (events.length) {
+        _ecEventsCache = events;
+        localStorage.setItem('ecEventsVersion', EC_EVENTS_VERSION);
+        localStorage.setItem('ecEvents', JSON.stringify(events));
+      } else {
+        _ecEventsCache = EC_EVENTS_DEFAULT.slice();
+        localStorage.removeItem('ecEvents');
+        localStorage.removeItem('ecEventsVersion');
       }
-      if (aLabel && aStart && aLabel !== 'Amazon' && aLabel !== 'イベント名') {
-        const def = EC_AUTO_EVENTS.find(d => d.display === aLabel || d.keywords?.some(k => aLabel.includes(k)));
-        events.push({ label: aLabel, start: aStart, end: aEnd || aStart, color: def?.color || '#e07b00', type: 'amazon' });
-      }
-    });
-    if (events.length) {
-      _ecEventsCache = events;
-      localStorage.setItem('ecEventsVersion', EC_EVENTS_VERSION);
-      localStorage.setItem('ecEvents', JSON.stringify(events));
-    } else {
-      _ecEventsCache = EC_EVENTS_DEFAULT.slice();
-      localStorage.removeItem('ecEvents');
-      localStorage.removeItem('ecEventsVersion');
+      if (document.getElementById('tab-wbs')?.classList.contains('active')) applyWbsFilter();
+      console.log('[EC sync] シートから取得成功:', _ecEventsCache.length, '件');
+    } catch(e) {
+      console.warn('EC events parse error:', e);
     }
-    if (document.getElementById('tab-wbs')?.classList.contains('active')) applyWbsFilter();
-    console.log('[EC sync] シートから直接取得成功:', _ecEventsCache.length, '件');
-  } catch(e) {
-    console.warn('EC events sheet sync failed:', e);
-    showBanner('ECイベント同期エラー: ' + e.message, 'error');
-  }
+  };
+
+  const script = document.createElement('script');
+  script.id = '_ecScript';
+  script.src = url;
+  script.onerror = () => { clearTimeout(timer); delete window[cbName]; console.warn('EC events script load failed'); };
+  document.head.appendChild(script);
 }
 
 function updateEcEventLabel(gIdx, value) {
