@@ -172,9 +172,9 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Hiragino Sans', 'Yu Goth
 .person-progress-num { font-size: 11px; color: var(--text2); }
 .person-progress-bar { height: 7px; background: var(--border); border-radius: 99px; overflow: hidden; }
 .person-progress-fill { height: 100%; border-radius: 99px; transition: width .5s ease; }
-.chart-card { background: var(--surface); border-radius: var(--radius); box-shadow: 0 2px 8px rgba(0,0,0,.08), 0 0 0 1px var(--border); padding: 20px; }
-.chart-card h3 { font-size: 12px; font-weight: 700; margin-bottom: 14px; padding-bottom: 12px; border-bottom: 1px solid var(--border); color: var(--text2); text-transform: uppercase; letter-spacing: .05em; }
-.chart-wrap { overflow-y: auto; overflow-x: hidden; max-height: 420px; scrollbar-width: thin; }
+.chart-card { background: var(--surface); border-radius: var(--radius); box-shadow: 0 2px 8px rgba(0,0,0,.08), 0 0 0 1px var(--border); padding: 20px; display: flex; flex-direction: column; }
+.chart-card h3 { font-size: 13px; font-weight: 700; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--border); color: var(--text); letter-spacing: .02em; }
+.chart-wrap { overflow-y: auto; overflow-x: hidden; max-height: 420px; scrollbar-width: thin; flex: 1; }
 .chart-wrap::-webkit-scrollbar { width: 5px; }
 .chart-wrap::-webkit-scrollbar-thumb { background: #ccc; border-radius: 99px; }
 .chart-inner { position: relative; width: 100%; }
@@ -938,6 +938,13 @@ tbody td { padding: 11px 16px; font-size: 13px; vertical-align: middle; }
 </div>
 
 <script>
+// Chart.js グローバル設定（角丸・フォント統一）
+Chart.defaults.plugins.tooltip.cornerRadius = 8;
+Chart.defaults.plugins.tooltip.padding = 10;
+Chart.defaults.plugins.tooltip.titleFont = { size: 13, weight: '600' };
+Chart.defaults.plugins.tooltip.bodyFont = { size: 12 };
+Chart.defaults.font.family = 'inherit';
+
 const SHEET_ID = '1I8p4IVrMTEKHRdfLwwpW6jVty5N2DIlT7riHC0TW-xw';
 const GID = '235656541';
 const SETTING_GID = '939802887';
@@ -1592,8 +1599,10 @@ function renderPersonChart(tasks) {
         label: s,
         data: people.map(p => tasks.filter(t => t.assignee === p && t.status === s).length),
         backgroundColor: STATUS_COLORS[s],
-        borderRadius: 4,
+        borderRadius: 6,
         borderSkipped: false,
+        barPercentage: 0.7,
+        categoryPercentage: 0.8,
       }))
     },
     options: {
@@ -1603,7 +1612,7 @@ function renderPersonChart(tasks) {
       plugins: {
         legend: {
           position: 'bottom',
-          labels: { font: { size: 11 }, padding: 12, usePointStyle: true, pointStyle: 'rect' }
+          labels: { font: { size: 11 }, padding: 14, usePointStyle: true, pointStyle: 'circle', boxWidth: 8 }
         },
         tooltip: {
           callbacks: {
@@ -1670,8 +1679,10 @@ function renderCategoryChart(tasks) {
         label: s,
         data: cats.map(c => tasks.filter(t => t.category === c && t.status === s).length),
         backgroundColor: STATUS_COLORS[s],
-        borderRadius: 4,
+        borderRadius: 6,
         borderSkipped: false,
+        barPercentage: 0.7,
+        categoryPercentage: 0.8,
       }))
     },
     options: {
@@ -1679,7 +1690,7 @@ function renderCategoryChart(tasks) {
       responsive: true,
       maintainAspectRatio: false,
       plugins: {
-        legend: { position: 'bottom', labels: { font: { size: 11 }, padding: 12, usePointStyle: true, pointStyle: 'rect' } },
+        legend: { position: 'bottom', labels: { font: { size: 11 }, padding: 14, usePointStyle: true, pointStyle: 'circle', boxWidth: 8 } },
         tooltip: {
           callbacks: {
             title: items => `${cats[items[0].dataIndex]}（合計: ${totals[cats[items[0].dataIndex]]}件）`,
