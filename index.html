@@ -2490,7 +2490,6 @@ async function submitTaskForm() {
     gasJsonp(payload.action, payload)
       .then(() => {
         showBanner((isEdit ? 'タスクをシートに更新しました' : 'タスクをシートに追加しました'), 'success');
-        setTimeout(loadData, 1000);
       })
       .catch(err => showBanner('シート書き込みエラー: ' + err.message, 'error'));
   }
@@ -2603,7 +2602,6 @@ async function submitBulkAdd() {
   }
   init();
   showBanner(`${tasks.length}件のタスクを追加しました`, 'success');
-  if (GAS_URL) setTimeout(loadData, 1500);
 }
 
 // ──────────────────────────────
@@ -2703,7 +2701,6 @@ async function bulkApplyAll() {
         });
       } catch(e) { /* continue */ }
     }
-    setTimeout(loadData, 1500);
   }
 }
 
@@ -2720,7 +2717,6 @@ async function bulkDelete() {
     for (const no of taskNos) {
       try { await gasJsonp('delete', { action: 'delete', taskNo: no }); } catch(e) { /* continue */ }
     }
-    setTimeout(loadData, 1500);
   }
 }
 
@@ -2772,7 +2768,7 @@ function deleteTaskFromModal() {
 
   if (GAS_URL && t.no && !t._local) {
     gasJsonp('delete', { taskNo: t.no })
-      .then(() => { showBanner('シートからも削除しました', 'success'); setTimeout(loadData, 800); })
+      .then(() => { showBanner('シートから削除しました', 'success'); })
       .catch(err => showBanner('シート削除エラー: ' + err.message, 'error'));
   }
 }
@@ -3612,7 +3608,8 @@ function loadEcEvents() {
     if (s && ver === EC_EVENTS_VERSION) { _ecEventsCache = JSON.parse(s); return _ecEventsCache; }
   } catch(_) {}
   _ecEventsCache = [...EC_EVENTS_DEFAULT];
-  saveEcEvents(_ecEventsCache);
+  localStorage.setItem('ecEventsVersion', EC_EVENTS_VERSION);
+  localStorage.setItem('ecEvents', JSON.stringify(_ecEventsCache));
   return _ecEventsCache;
 }
 
@@ -3902,8 +3899,11 @@ async function saveTask(newTask) {
       workHours:     localTask.workHours,
       completedDate: '',
     };
-    await gasJsonp('add', payload);
-    setTimeout(loadData, 1000);
+    const res = await gasJsonp('add', payload);
+    if (res && res.no) {
+      const idx = allTasks.indexOf(localTask);
+      if (idx !== -1) allTasks[idx].no = res.no;
+    }
   }
 }
 
