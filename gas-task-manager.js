@@ -143,7 +143,7 @@ function deleteTask(data) {
   if (!taskNo) throw new Error('taskNo が指定されていません');
 
   var lastRow = sheet.getLastRow();
-  for (var r = 2; r <= lastRow; r++) {
+  for (var r = 3; r <= lastRow; r++) {
     if (Number(sheet.getRange(r, COL.NO).getValue()) === taskNo) {
       sheet.deleteRow(r);
       return { status: 'ok', no: taskNo };
@@ -162,7 +162,7 @@ function editTask(data) {
 
   var lastRow = sheet.getLastRow();
   var targetRow = -1;
-  for (var r = 2; r <= lastRow; r++) {
+  for (var r = 3; r <= lastRow; r++) {
     if (Number(sheet.getRange(r, COL.NO).getValue()) === taskNo) {
       targetRow = r;
       break;
@@ -203,7 +203,7 @@ function parseDate(val) {
 
 function getLastNo(sheet) {
   var lastRow = sheet.getLastRow();
-  for (var r = lastRow; r >= 2; r--) {
+  for (var r = lastRow; r >= 3; r--) {
     var val = Number(sheet.getRange(r, COL.NO).getValue());
     if (val > 0) return val;
   }
@@ -266,14 +266,14 @@ function replaceEcEvents(data) {
 
 // ──────────────────────────────
 // オートメーションシート管理（gid=1898911664）
-// Row1=ヘッダ, Row2+=データ
+// Row1=タイトル, Row2=ヘッダ, Row3+=データ
 // ──────────────────────────────
 function getAutoTemplates() {
   try {
     var sheet = getSheetByGid(AUTOMATION_SHEET_GID);
     var lastRow = sheet.getLastRow();
-    if (lastRow < 2) return [];
-    var data = sheet.getRange(2, 1, lastRow - 1, 11).getValues();
+    if (lastRow < 3) return [];
+    var data = sheet.getRange(3, 1, lastRow - 2, 11).getValues();
     return data
       .map(function(row, i) {
         if (!row[AUTO_COL.TASK_NAME - 1]) return null;
@@ -282,7 +282,7 @@ function getAutoTemplates() {
         var lastGenVal  = row[AUTO_COL.LAST_GENERATED - 1];
         var nextDueVal  = row[AUTO_COL.NEXT_DUE - 1];
         return {
-          _row:          i + 2,
+          _row:          i + 3,
           categories:    catsRaw ? catsRaw.split(',').map(function(s){ return s.trim(); }) : [],
           assignee:      String(row[AUTO_COL.ASSIGNEE - 1] || ''),
           ecEventLabel:  row[AUTO_COL.EC_EVENT - 1] || null,
@@ -303,7 +303,7 @@ function saveAutoTemplatesData(templates) {
   try {
     var sheet = getSheetByGid(AUTOMATION_SHEET_GID);
     var lastRow = sheet.getLastRow();
-    if (lastRow > 1) sheet.getRange(2, 1, lastRow - 1, 11).clearContent();
+    if (lastRow > 2) sheet.getRange(3, 1, lastRow - 2, 11).clearContent();
     if (!templates.length) return;
     var rows = templates.map(function(tmpl) {
       var cats = Array.isArray(tmpl.categories) ? tmpl.categories : (tmpl.category ? [tmpl.category] : []);
@@ -321,7 +321,7 @@ function saveAutoTemplatesData(templates) {
         tmpl.nextDue       ? new Date(tmpl.nextDue)       : '',
       ];
     });
-    sheet.getRange(2, 1, rows.length, 11).setValues(rows);
+    sheet.getRange(3, 1, rows.length, 11).setValues(rows);
   } catch(e) { Logger.log('saveAutoTemplatesData error: ' + e); }
 }
 

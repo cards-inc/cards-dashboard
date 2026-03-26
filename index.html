@@ -1183,12 +1183,16 @@ function fetchGviz(gid) {
 // 列: A(0)空, B(1)カテゴリ, C(2)担当者, D(3)ECイベント, E(4)タスク内容,
 //     F(5)詳細, G(6)繰り返し, H(7)開始日, I(8)期限日数, J(9)最終生成日, K(10)次回生成日
 function parseAutoGviz(table) {
+  const AUTO_HEADER_KEYWORDS = ['タスク内容', 'カテゴリ', '担当者', '繰り返し'];
   const templates = [];
   for (let r = 0; r < table.rows.length; r++) {
     const cells = table.rows[r].c || [];
     const get = i => cells[i] && cells[i].v != null ? cells[i].v : '';
     const taskName = String(get(4)).trim();
     if (!taskName) continue;
+    // ヘッダー行スキップ
+    const vals = cells.map(c => c && c.v != null ? String(c.v) : '');
+    if (AUTO_HEADER_KEYWORDS.filter(k => vals.some(v => v.includes(k))).length >= 2) continue;
     const catsRaw = String(get(1)).trim();
     templates.push({
       _row:          r + 2,
