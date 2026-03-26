@@ -552,6 +552,16 @@ function notifyOverdueTasks() {
   var data = sheet.getRange(4, 1, lastRow - 3, 11).getValues();
   var today = new Date(); today.setHours(0, 0, 0, 0);
 
+  // 土日祝はスキップ
+  var dow = today.getDay();
+  if (dow === 0 || dow === 6) { Logger.log('休日のためスキップ'); return; }
+  var JP_HOLIDAYS = [
+    '01-01','01-13','02-11','02-23','03-20','04-29','05-03','05-04','05-05','05-06',
+    '07-20','08-11','09-21','09-22','09-23','10-12','11-03','11-23'
+  ];
+  var mmdd = ('0'+(today.getMonth()+1)).slice(-2) + '-' + ('0'+today.getDate()).slice(-2);
+  if (JP_HOLIDAYS.indexOf(mmdd) >= 0) { Logger.log('祝日のためスキップ'); return; }
+
   // 担当者ごとに期限切れタスクをグループ化
   var overdueByPerson = {};
   data.forEach(function(row) {
