@@ -3776,20 +3776,15 @@ function buildEcEventRows(days, COL_W) {
     });
     if (!visible.length) return { labelHTML: '', timelineHTML: '', rowHeight: 0 };
 
-    // レーン割り当て（重複イベントを別レーンに）
-    const lanes = [];
+    // 単一レーン（1行表示・重複イベントは重ねて描画）
     const placed = visible.map(e => {
       const s = new Date(e.start), en = new Date(e.end || e.start);
       let si = days.findIndex(d => d >= s); if (si < 0) si = 0;
       let ei = days.findIndex(d => d >= en); if (ei < 0) ei = days.length - 1;
-      let lane = 0;
-      while (lanes[lane] && lanes[lane] > si) lane++;
-      lanes[lane] = ei + 1;
-      return { ...e, si, ei, lane };
+      return { ...e, si, ei, lane: 0 };
     });
 
-    const maxLane = Math.max(...placed.map(b => b.lane));
-    const rowH    = (maxLane + 1) * LANE_H;
+    const rowH = LANE_H;
 
     // 絶対配置：イベント数分のdivのみ生成（per-cellループなし）
     const eventsHTML = placed.map(b => {
