@@ -115,9 +115,9 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Hiragino Sans', 'Yu Goth
 .ec-panel-head { padding: 12px 16px; font-size: 13px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
 .ec-auto-badge { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; padding: 2px 7px; border-radius: 99px; font-weight: 600; white-space: nowrap; }
 /* WBS EC event rows */
-.wbs-row-label.ec-head { background: #7c8fa1; color: #fff; font-size: 10px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; height: 22px; border-bottom: none; padding: 0 12px; flex-direction: row; align-items: center; gap: 6px; }
-.wbs-row-label.ec-rakuten { background: linear-gradient(135deg,#fff0f0,#fde8e8); color: #bf1515; font-weight: 800; font-size: 11px; border-bottom: 1px solid #ffc5c5; border-left: 4px solid #bf1515; padding-left: 10px; letter-spacing: .03em; }
-.wbs-row-label.ec-amazon  { background: linear-gradient(135deg,#fffbf0,#fff3d6); color: #92400e; font-weight: 800; font-size: 11px; border-bottom: 1px solid #fcd34d; border-left: 4px solid #f59e0b; padding-left: 10px; letter-spacing: .03em; }
+.wbs-row-label.ec-head { background: #7c8fa1; color: #fff; font-size: 10px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; height: 22px; border-bottom: none; padding: 0 12px; flex-direction: row; align-items: center; justify-content: flex-start; gap: 6px; }
+.wbs-row-label.ec-rakuten { background: linear-gradient(135deg,#fff0f0,#fde8e8); color: #bf1515; font-weight: 800; font-size: 11px; border-bottom: 1px solid #ffc5c5; border-left: 4px solid #bf1515; padding-left: 10px; letter-spacing: .03em; justify-content: flex-start; }
+.wbs-row-label.ec-amazon  { background: linear-gradient(135deg,#fffbf0,#fff3d6); color: #92400e; font-weight: 800; font-size: 11px; border-bottom: 1px solid #fcd34d; border-left: 4px solid #f59e0b; padding-left: 10px; letter-spacing: .03em; justify-content: flex-start; }
 .wbs-trow.ec-head    { background: #7c8fa1; border-bottom: 2px solid rgba(255,255,255,.15); }
 .wbs-trow.ec-rakuten { background: #fff7f7; border-bottom: 1px solid #ffc5c5; }
 .wbs-trow.ec-amazon  { background: #fffdf5; border-bottom: 1px solid #fcd34d; }
@@ -311,7 +311,7 @@ tbody td { padding: 11px 16px; font-size: 13px; vertical-align: middle; }
 
 /* Label rows */
 .wbs-row-label { display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 2px; height: 40px; padding: 0 14px; border-bottom: 1px solid var(--border); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; background: var(--surface); }
-.wbs-row-label.cat { background: #f0f4ff; font-weight: 700; font-size: 12px; color: var(--primary); height: 34px; border-bottom: 2px solid #d0d9ff; border-left: 3px solid var(--primary); padding-left: 11px; flex-direction: row; align-items: center; gap: 0; }
+.wbs-row-label.cat { background: #f0f4ff; font-weight: 700; font-size: 12px; color: var(--primary); height: 34px; border-bottom: 2px solid #d0d9ff; border-left: 3px solid var(--primary); padding-left: 11px; flex-direction: row; align-items: center; justify-content: flex-start; gap: 0; }
 .wbs-row-label .assignee { color: var(--text2); font-size: 10px; flex-shrink: 0; line-height: 1; }
 
 /* Timeline grid */
