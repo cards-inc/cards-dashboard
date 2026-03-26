@@ -3626,17 +3626,25 @@ async function syncEcEventsFromSheet() {
   if (!GAS_URL) return;
   try {
     const res = await gasJsonp('getEcEvents', {});
-    if (res.events && res.events.length) {
-      // シートデータに色を補完
-      res.events.forEach(e => {
+    const HEADER_LABELS = ['イベント名', '開始日', '終了日', '楽天市場', 'Amazon'];
+    const filtered = (res.events || []).filter(e =>
+      e.label && !HEADER_LABELS.includes(e.label) && e.start
+    );
+    if (filtered.length) {
+      filtered.forEach(e => {
         if (!e.color) {
           const def = EC_AUTO_EVENTS.find(d => d.display === e.label || d.keywords?.some(k => e.label.includes(k)));
           e.color = def?.color || (e.type === 'rakuten' ? '#bf1515' : '#e07b00');
         }
       });
-      _ecEventsCache = res.events;
+      _ecEventsCache = filtered;
       localStorage.setItem('ecEventsVersion', EC_EVENTS_VERSION);
-      localStorage.setItem('ecEvents', JSON.stringify(res.events));
+      localStorage.setItem('ecEvents', JSON.stringify(filtered));
+    } else {
+      // シートが空またはヘッダーのみ → キャッシュをクリアしてデフォルトに戻す
+      _ecEventsCache = null;
+      localStorage.removeItem('ecEvents');
+      localStorage.removeItem('ecEventsVersion');
     }
   } catch(e) { console.warn('EC events sheet sync failed:', e); }
 }
