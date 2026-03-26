@@ -960,6 +960,8 @@ let settingCategories  = [];  // Settingシート B列
 let settingPeople = [];  // Settingシートから取得したメンバー一覧
 let personChartInst = null;
 let categoryChartInst = null;
+let _ecEventsCache = null;  // ECイベントキャッシュ（loadEcEventsFromSheet後に設定）
+let _autoCache = null;      // オートメーションテンプレートキャッシュ
 let sortCol = 'no', sortDir = 1;
 let kpiFilter = null; // null | status string | 'overdue'
 function _loadExcluded(key) {
@@ -3048,7 +3050,6 @@ function updateAutoCatAll() {
   allCb.indeterminate = checkedCount > 0 && checkedCount < items.length;
 }
 
-let _autoCache = null; // メモリキャッシュ（タブ内共有）
 
 async function loadAutoTemplates() {
   if (_autoCache) return _autoCache;
@@ -3614,7 +3615,6 @@ function ecSpecialDayEvents(minD, maxD) {
 
 // ── ECイベント管理（シート優先 + localStorage キャッシュ）──
 const EC_EVENTS_VERSION = '2026v1';
-let _ecEventsCache = null;
 
 function loadEcEvents() {
   if (_ecEventsCache) return _ecEventsCache;
