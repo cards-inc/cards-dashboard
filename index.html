@@ -3095,10 +3095,6 @@ function nextDateAfter(startDate, repeat, refDate, ecLabel) {
   return d;
 }
 
-function fmtDate(d) {
-  return `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}`;
-}
-
 function repeatLabel(r) { return {daily:'毎日',weekly:'毎週',biweekly:'隔週',monthly:'毎月',ec_event:'イベントごと'}[r]||r; }
 
 // ──────────────────────────────
