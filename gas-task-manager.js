@@ -17,6 +17,7 @@ var SPREADSHEET_ID = '1I8p4IVrMTEKHRdfLwwpW6jVty5N2DIlT7riHC0TW-xw';
 var TASK_SHEET_GID       = 235656541;
 var EC_EVENTS_SHEET_GID  = 365675538;  // ECイベントカレンダー設定シート
 var AUTOMATION_SHEET_GID = 1898911664; // オートメーションシート
+var SETTING_SHEET_GID    = 939802887;  // 設定シート（イベント名マスタ）
 
 // オートメーションシート列定義（1始まり）
 var AUTO_COL = {
@@ -84,6 +85,8 @@ function doGet(e) {
       var data = JSON.parse(e.parameter.data || '{}');
       saveAutoTemplatesData(data.templates || []);
       result = { status: 'ok' };
+    } else if (action === 'getSettingEvents') {
+      result = { status: 'ok', events: getSettingEvents() };
     } else if (action === 'getEcEvents') {
       result = { status: 'ok', events: getEcEventsFromSheet() };
     } else if (action === 'replaceEcEvents') {
@@ -220,6 +223,30 @@ function jsonpResponse(obj, callback) {
     ? ContentService.MimeType.JAVASCRIPT
     : ContentService.MimeType.JSON;
   return ContentService.createTextOutput(body).setMimeType(mime);
+}
+
+// ──────────────────────────────
+// 設定シートからイベント名マスタを取得（gid=939802887）
+// Row1=ヘッダー, Row2+=データ, D列=楽天イベント, E列=Amazonイベント
+// ──────────────────────────────
+function getSettingEvents() {
+  try {
+    var sheet = getSheetByGid(SETTING_SHEET_GID);
+    var lastRow = sheet.getLastRow();
+    if (lastRow < 2) return { rakuten: [], amazon: [] };
+    var data = sheet.getRange(2, 4, lastRow - 1, 2).getValues(); // D〜E列
+    var rakuten = [], amazon = [];
+    data.forEach(function(row) {
+      var r = String(row[0] || '').trim();
+      var a = String(row[1] || '').trim();
+      if (r && rakuten.indexOf(r) === -1) rakuten.push(r);
+      if (a && amazon.indexOf(a) === -1) amazon.push(a);
+    });
+    return { rakuten: rakuten, amazon: amazon };
+  } catch(e) {
+    Logger.log('getSettingEvents error: ' + e);
+    return { rakuten: [], amazon: [] };
+  }
 }
 
 // ──────────────────────────────

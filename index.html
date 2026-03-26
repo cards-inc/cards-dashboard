@@ -934,8 +934,9 @@ let settingCategories  = [];  // Settingシート B列
 let settingPeople = [];  // Settingシートから取得したメンバー一覧
 let personChartInst = null;
 let categoryChartInst = null;
-let _ecEventsCache = null;  // ECイベントキャッシュ（loadEcEventsFromSheet後に設定）
-let _autoCache = null;      // オートメーションテンプレートキャッシュ
+let _ecEventsCache = null;      // ECイベントキャッシュ（loadEcEventsFromSheet後に設定）
+let _autoCache = null;          // オートメーションテンプレートキャッシュ
+let _settingEventsCache = null; // 設定シートのイベント名マスタキャッシュ
 let sortCol = 'no', sortDir = 1;
 let kpiFilter = null; // null | status string | 'overdue'
 function _loadExcluded(key) {
@@ -966,6 +967,7 @@ function loadData(silent) {
 
   // ECイベントをシートから非同期で同期（初回のみ）
   if (!silent && !_ecEventsCache) syncEcEventsFromSheet();
+  if (!silent && !_settingEventsCache) loadSettingEvents();
 
   // キャッシュを即座に表示（初回のみ）
   if (!silent) {
@@ -3679,7 +3681,7 @@ function _renderEcTable(type, tableId) {
   const allEvs = loadEcEvents();
   const evs    = allEvs.map((e, i) => ({ ...e, gIdx: i })).filter(e => e.type === type);
   const inputSt  = 'width:100%;border:1px solid var(--border);border-radius:6px;padding:4px 7px;font-size:12px;font-family:inherit;background:var(--surface);color:var(--text)';
-  const eventDefs = EC_AUTO_EVENTS.filter(e => e.type === type);
+  const eventDefs = getSettingEventList(type);
 
   const dataRows = evs.map(e => {
     // 固定定義のカラーを使用（表示ラベルで照合）
@@ -3966,6 +3968,41 @@ async function autoGenerateTask(i, genDate, manual) {
 // color: WBSカレンダー表示色（固定）
 // keywords: WBSカレンダーの label と部分一致検索するキーワード
 // autoGen: true の場合 ecSpecialDayEvents でも自動生成日を検索
+// 設定シートからイベント名マスタを取得してキャッシュ
+async function loadSettingEvents() {
+  if (_settingEventsCache) return _settingEventsCache;
+  try {
+    const res = await gasJsonp('getSettingEvents', {});
+    if (res.events && (res.events.rakuten.length || res.events.amazon.length)) {
+      _settingEventsCache = res.events;
+      return _settingEventsCache;
+    }
+  } catch(e) { console.warn('loadSettingEvents failed', e); }
+  // フォールバック: EC_AUTO_EVENTSから生成
+  _settingEventsCache = {
+    rakuten: EC_AUTO_EVENTS.filter(e => e.type === 'rakuten').map(e => e.display),
+    amazon:  EC_AUTO_EVENTS.filter(e => e.type === 'amazon').map(e => e.display),
+  };
+  return _settingEventsCache;
+}
+
+// 設定シートのイベント名から定義オブジェクトを返す（EC_AUTO_EVENTSとマージ）
+function getSettingEventList(type) {
+  const names = _settingEventsCache
+    ? (_settingEventsCache[type === 'rakuten' ? 'rakuten' : 'amazon'] || [])
+    : EC_AUTO_EVENTS.filter(e => e.type === type).map(e => e.display);
+  return names.map(name => {
+    const matched = EC_AUTO_EVENTS.find(e => e.type === type && e.display === name);
+    return matched || {
+      id:       (type === 'rakuten' ? 'Rakuten_' : 'Amazon_') + name,
+      display:  name,
+      type,
+      color:    type === 'rakuten' ? '#bf1515' : '#e07b00',
+      keywords: [name],
+    };
+  });
+}
+
 const EC_AUTO_EVENTS = [
   { id: 'Rakuten_お買い物マラソン',       display: 'お買い物マラソン',      type: 'rakuten', color: '#bf1515', keywords: ['マラソン', 'お買い物マラソン'] },
   { id: 'Rakuten_お買い物マラソン×5,0日', display: 'お買い物マラソン×5,0日', type: 'rakuten', color: '#7c1010', keywords: ['マラソン×5', 'お買い物マラソン×5', 'マラソン×50'] },
@@ -4010,9 +4047,9 @@ function populateEcEventSelect() {
   if (!sel) return;
   const curVal = sel.value;
 
-  // Rakuten / Amazon でグループ化
-  const rakuten = EC_AUTO_EVENTS.filter(e => e.type === 'rakuten');
-  const amazon  = EC_AUTO_EVENTS.filter(e => e.type === 'amazon');
+  // Rakuten / Amazon でグループ化（設定シートのマスタを使用）
+  const rakuten = getSettingEventList('rakuten');
+  const amazon  = getSettingEventList('amazon');
 
   const mkOpts = (list) => list.map(e => {
     const next = nextEcEventDate(e.id);
