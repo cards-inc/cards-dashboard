@@ -370,64 +370,53 @@ tbody td { padding: 11px 16px; font-size: 13px; vertical-align: middle; }
     </div>
     <div style="overflow-y:auto;padding:20px 24px;line-height:1.75;font-size:14px">
 
-      <p style="margin:0 0 20px;color:var(--text2);font-size:13px">Googleスプレッドシートをデータベースに、GASをAPIとして動作するタスク管理ダッシュボードです。</p>
+      <div style="margin:0 0 20px;padding:16px;background:var(--primary-light);border-radius:10px">
+        <p style="margin:0 0 8px;font-weight:700;font-size:14px;color:var(--primary)">このダッシュボードでできること</p>
+        <p style="margin:0;color:var(--text);font-size:13px;line-height:1.8">チームのタスクをまとめて管理し、誰が何をいつまでにやるかをひと目で確認できます。<br>楽天・Amazonのセール日程も自動で表示されるので、準備の抜け漏れを防げます。</p>
+      </div>
 
       <!-- タブ別 -->
       <div style="display:flex;flex-direction:column;gap:8px">
 
         <div style="border:1px solid var(--border);border-radius:10px;overflow:hidden">
-          <div style="background:var(--primary);color:#fff;padding:10px 16px;font-weight:700;font-size:13px">タスクタブ — 日々のタスク管理</div>
+          <div style="background:var(--primary);color:#fff;padding:10px 16px;font-weight:700;font-size:13px">タスク — やることの管理</div>
           <div style="padding:12px 16px;font-size:13px">
             <div style="display:grid;grid-template-columns:auto 1fr;gap:6px 12px;align-items:start">
-              <span style="color:var(--primary);font-weight:700;white-space:nowrap">追加</span><span>右上「＋タスク追加」ボタン → フォームに入力して保存</span>
-              <span style="color:var(--primary);font-weight:700;white-space:nowrap">編集</span><span>タスクカードの鉛筆アイコン or ステータスバッジをクリック</span>
-              <span style="color:var(--primary);font-weight:700;white-space:nowrap">絞込み</span><span>担当者・カテゴリ・ステータスのドロップダウン、またはテキスト検索</span>
-              <span style="color:var(--primary);font-weight:700;white-space:nowrap">KPI</span><span>総タスク / 完了 / 進行中 / 未着手 / 期限超過を上部カードで確認</span>
+              <span style="color:var(--primary);font-weight:700;white-space:nowrap">追加</span><span>右上の「＋タスク追加」からタスクを登録</span>
+              <span style="color:var(--primary);font-weight:700;white-space:nowrap">編集</span><span>タスクの鉛筆アイコンやステータスをクリックして変更</span>
+              <span style="color:var(--primary);font-weight:700;white-space:nowrap">絞込み</span><span>担当者・カテゴリ・ステータスで表示を絞れます</span>
+              <span style="color:var(--primary);font-weight:700;white-space:nowrap">進捗</span><span>上部のカードで全体の状況（完了・対応中・未着手・期限超過）を確認</span>
             </div>
           </div>
         </div>
 
         <div style="border:1px solid var(--border);border-radius:10px;overflow:hidden">
-          <div style="background:#4f7096;color:#fff;padding:10px 16px;font-weight:700;font-size:13px">WBSタブ — スケジュール・ECイベント確認</div>
+          <div style="background:#4f7096;color:#fff;padding:10px 16px;font-weight:700;font-size:13px">WBS — スケジュールの見える化</div>
           <div style="padding:12px 16px;font-size:13px">
             <div style="display:grid;grid-template-columns:auto 1fr;gap:6px 12px;align-items:start">
-              <span style="color:#4f7096;font-weight:700;white-space:nowrap">ガントチャート</span><span>タスクの期限日をカレンダー上のバーで表示</span>
-              <span style="color:#4f7096;font-weight:700;white-space:nowrap">ECカレンダー</span><span>楽天（赤）・Amazon（黄）のイベント期間をWBS上部に表示</span>
-              <span style="color:#4f7096;font-weight:700;white-space:nowrap">表示調整</span><span>左上の日付で開始日を変更 / スライダーで列幅を調整</span>
+              <span style="color:#4f7096;font-weight:700;white-space:nowrap">カレンダー</span><span>タスクの期間をバーで表示。いつ何があるかひと目でわかります</span>
+              <span style="color:#4f7096;font-weight:700;white-space:nowrap">ECイベント</span><span>楽天（赤）・Amazon（黄）のセール期間が上部に自動表示</span>
+              <span style="color:#4f7096;font-weight:700;white-space:nowrap">曜日表示</span><span>日付・曜日・土日祝がカレンダー上でわかります</span>
             </div>
           </div>
         </div>
 
         <div style="border:1px solid var(--border);border-radius:10px;overflow:hidden">
-          <div style="background:#4a154b;color:#fff;padding:10px 16px;font-weight:700;font-size:13px">業務報告タブ — Slack投稿</div>
+          <div style="background:#4a154b;color:#fff;padding:10px 16px;font-weight:700;font-size:13px">業務報告 — Slackに投稿</div>
           <div style="padding:12px 16px;font-size:13px">
             <div style="display:grid;grid-template-columns:auto 1fr;gap:6px 12px;align-items:start">
-              <span style="color:#4a154b;font-weight:700;white-space:nowrap">手順</span><span>日付を選択 → 「サマリー生成」で当日のタスクを集計 → 「Slack投稿」</span>
-              <span style="color:#4a154b;font-weight:700;white-space:nowrap">スレッド</span><span>同日に業務報告済みの場合、自動でスレッド返信になる</span>
+              <span style="color:#4a154b;font-weight:700;white-space:nowrap">使い方</span><span>日付と担当者を選んで「サマリー生成」→ 内容を確認して「Slack投稿」</span>
+              <span style="color:#4a154b;font-weight:700;white-space:nowrap">投稿先</span><span>業務報告チャンネルの当日スレッドに自動で返信されます</span>
             </div>
           </div>
         </div>
 
         <div style="border:1px solid var(--border);border-radius:10px;overflow:hidden">
-          <div style="background:#b45309;color:#fff;padding:10px 16px;font-weight:700;font-size:13px">オートメーションタブ — 定期タスクの自動生成</div>
+          <div style="background:#b45309;color:#fff;padding:10px 16px;font-weight:700;font-size:13px">オートメーション — タスクの自動作成</div>
           <div style="padding:12px 16px;font-size:13px">
             <div style="display:grid;grid-template-columns:auto 1fr;gap:6px 12px;align-items:start">
-              <span style="color:#b45309;font-weight:700;white-space:nowrap">テンプレート</span><span>タスク名・カテゴリ・繰り返し条件を登録して定期生成</span>
-              <span style="color:#b45309;font-weight:700;white-space:nowrap">ECイベント連動</span><span>繰り返しに「ECイベントごと」を選択するとイベントに合わせて自動スケジュール</span>
-              <span style="color:#b45309;font-weight:700;white-space:nowrap">日程ルール</span><span>記載日 = イベント開始の5営業日前 / 期限 = 2営業日前</span>
-              <span style="color:#b45309;font-weight:700;white-space:nowrap">×5,0日</span><span>マラソン / スーパーSALE期間中で日付が5か0で終わる最初の日</span>
-            </div>
-          </div>
-        </div>
-
-        <div style="border:1px solid var(--border);border-radius:10px;overflow:hidden">
-          <div style="background:#374151;color:#fff;padding:10px 16px;font-weight:700;font-size:13px">管理者タブ — 初期パスワード: admin</div>
-          <div style="padding:12px 16px;font-size:13px">
-            <div style="display:grid;grid-template-columns:auto 1fr;gap:6px 12px;align-items:start">
-              <span style="color:#374151;font-weight:700;white-space:nowrap">カテゴリ</span><span>タスクのカテゴリと色を追加・編集・削除</span>
-              <span style="color:#374151;font-weight:700;white-space:nowrap">担当者</span><span>メンバーを追加・削除（タスクの担当者選択肢に反映）</span>
-              <span style="color:#374151;font-weight:700;white-space:nowrap">ECイベント</span><span>楽天・Amazonのイベント期間を管理（WBSと自動化スケジュールに反映）</span>
-              <span style="color:#374151;font-weight:700;white-space:nowrap">PW変更</span><span>管理者パスワードを変更（ブラウザのlocalStorageに保存）</span>
+              <span style="color:#b45309;font-weight:700;white-space:nowrap">定期タスク</span><span>毎週・毎月など決まったタイミングでタスクを自動作成</span>
+              <span style="color:#b45309;font-weight:700;white-space:nowrap">セール連動</span><span>楽天・Amazonのセールに合わせてタスクを自動作成（開始7営業日前に生成、期限は2営業日前）</span>
             </div>
           </div>
         </div>
