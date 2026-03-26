@@ -153,10 +153,10 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Hiragino Sans', 'Yu Goth
 
 /* Chart cards */
 .charts-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
-@media (max-width: 1200px) { .charts-row { grid-template-columns: 1fr 1fr; } }
-@media (max-width: 1200px) { .charts-row > .progress-card { grid-column: 1 / -1; order: -1; display: grid; grid-template-columns: auto 1fr; gap: 0; } }
-@media (max-width: 1200px) { .charts-row > .progress-card .progress-overall { border-bottom: none; border-right: 1px solid var(--border); padding: 16px 24px; margin-bottom: 0; } }
-@media (max-width: 1200px) { .charts-row > .progress-card .progress-persons { padding: 16px 20px; } }
+.charts-row > .progress-card { grid-column: 1 / -1; order: -1; display: grid; grid-template-columns: auto 1fr; gap: 0; }
+.charts-row > .progress-card .progress-overall { border-bottom: none; border-right: 1px solid var(--border); padding: 16px 24px; margin-bottom: 0; }
+.charts-row > .progress-card .progress-persons { padding: 16px 20px; }
+@media (min-width: 701px) { .charts-row { grid-template-columns: 1fr 1fr; } }
 @media (max-width: 700px)  { .charts-row { grid-template-columns: 1fr; } }
 @media (max-width: 700px)  { .charts-row > .progress-card { display: flex; flex-direction: column; } }
 @media (max-width: 700px)  { .charts-row > .progress-card .progress-overall { border-right: none; border-bottom: 1px solid var(--border); } }
@@ -179,8 +179,10 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Hiragino Sans', 'Yu Goth
 .person-progress-fill { height: 100%; border-radius: 99px; transition: width .5s ease; }
 .chart-card { background: var(--surface); border-radius: var(--radius); box-shadow: 0 2px 8px rgba(0,0,0,.08), 0 0 0 1px var(--border); padding: 20px; }
 .chart-card h3 { font-size: 12px; font-weight: 700; margin-bottom: 14px; padding-bottom: 12px; border-bottom: 1px solid var(--border); color: var(--text2); text-transform: uppercase; letter-spacing: .05em; }
-.chart-wrap { overflow-y: auto; overflow-x: hidden; max-height: 400px; }
-.chart-inner { position: relative; width: 100%; min-height: 280px; }
+.chart-wrap { overflow-y: auto; overflow-x: hidden; max-height: 420px; scrollbar-width: thin; }
+.chart-wrap::-webkit-scrollbar { width: 5px; }
+.chart-wrap::-webkit-scrollbar-thumb { background: #ccc; border-radius: 99px; }
+.chart-inner { position: relative; width: 100%; }
 
 /* Table card */
 .table-card { background: var(--surface); border-radius: var(--radius); box-shadow: 0 2px 8px rgba(0,0,0,.08), 0 0 0 1px var(--border); overflow: hidden; }
@@ -1546,7 +1548,8 @@ function renderPersonChart(tasks) {
   const people = [...new Set(tasks.map(t => t.assignee).filter(Boolean))].sort();
   if (!people.length) return;
 
-  document.getElementById('personChartInner').style.height = Math.max(280, people.length * 52) + 'px';
+  const BAR_H = 40;
+  document.getElementById('personChartInner').style.height = Math.max(200, people.length * BAR_H + 60) + 'px';
   const ctx = document.getElementById('personChart').getContext('2d');
   if (personChartInst) personChartInst.destroy();
 
@@ -1566,37 +1569,37 @@ function renderPersonChart(tasks) {
       }))
     },
     options: {
+      indexAxis: 'y',
       responsive: true,
       maintainAspectRatio: false,
       plugins: {
         legend: {
           position: 'bottom',
-          labels: { font: { size: 12 }, padding: 16, usePointStyle: true, pointStyle: 'rect' }
+          labels: { font: { size: 11 }, padding: 12, usePointStyle: true, pointStyle: 'rect' }
         },
         tooltip: {
           callbacks: {
             title: items => `${items[0].label}（合計: ${totals[items[0].label]}件）`,
-            label: item => item.formattedValue > 0 ? ` ${item.dataset.label}: ${item.formattedValue}件` : null,
+            label: item => item.parsed.x > 0 ? ` ${item.dataset.label}: ${item.parsed.x}件` : null,
           }
         },
-        // 棒の上に数値ラベル
         datalabels: false,
       },
       scales: {
-        x: {
-          ticks: { font: { size: 13, weight: '600' } },
+        y: {
+          stacked: true,
+          ticks: { font: { size: 13, weight: '600' }, crossAlign: 'far' },
           grid: { display: false },
           border: { display: false }
         },
-        y: {
+        x: {
           beginAtZero: true,
+          stacked: true,
           ticks: { stepSize: 1, font: { size: 11 }, precision: 0 },
           grid: { color: '#f0f0f0' },
           border: { display: false }
         }
       },
-      // 各バーの上に数値表示（Chart.jsのafterDraw）
-      animation: { onComplete: function() { drawDataLabels(this); } },
       onClick: (e, elements) => {
         if (!elements.length) return;
         const person = people[elements[0].index];
@@ -1622,7 +1625,8 @@ function renderCategoryChart(tasks) {
   const cats = [...new Set(tasks.map(t => t.category).filter(Boolean))].sort();
   if (!cats.length) return;
 
-  document.getElementById('categoryChartInner').style.height = Math.max(280, cats.length * 52) + 'px';
+  const BAR_H = 40;
+  document.getElementById('categoryChartInner').style.height = Math.max(200, cats.length * BAR_H + 60) + 'px';
   const ctx = document.getElementById('categoryChart').getContext('2d');
   if (categoryChartInst) categoryChartInst.destroy();
 
@@ -1643,22 +1647,22 @@ function renderCategoryChart(tasks) {
       }))
     },
     options: {
+      indexAxis: 'y',
       responsive: true,
       maintainAspectRatio: false,
       plugins: {
-        legend: { position: 'bottom', labels: { font: { size: 12 }, padding: 16, usePointStyle: true, pointStyle: 'rect' } },
+        legend: { position: 'bottom', labels: { font: { size: 11 }, padding: 12, usePointStyle: true, pointStyle: 'rect' } },
         tooltip: {
           callbacks: {
             title: items => `${cats[items[0].dataIndex]}（合計: ${totals[cats[items[0].dataIndex]]}件）`,
-            label: item => item.parsed.y > 0 ? ` ${item.dataset.label}: ${item.parsed.y}件` : null,
+            label: item => item.parsed.x > 0 ? ` ${item.dataset.label}: ${item.parsed.x}件` : null,
           }
         }
       },
       scales: {
-        x: { ticks: { font: { size: 12, weight: '600' } }, grid: { display: false }, border: { display: false } },
-        y: { beginAtZero: true, ticks: { stepSize: 1, font: { size: 11 }, precision: 0 }, grid: { color: '#f0f0f0' }, border: { display: false } }
+        y: { stacked: true, ticks: { font: { size: 12, weight: '600' }, crossAlign: 'far' }, grid: { display: false }, border: { display: false } },
+        x: { beginAtZero: true, stacked: true, ticks: { stepSize: 1, font: { size: 11 }, precision: 0 }, grid: { color: '#f0f0f0' }, border: { display: false } }
       },
-      animation: { onComplete: function() { drawDataLabels(this); } },
       onClick: (e, elements) => {
         if (!elements.length) return;
         const cat = cats[elements[0].index];
