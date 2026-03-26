@@ -3609,9 +3609,7 @@ function loadEcEvents() {
     const s   = localStorage.getItem('ecEvents');
     if (s && ver === EC_EVENTS_VERSION) { _ecEventsCache = JSON.parse(s); return _ecEventsCache; }
   } catch(_) {}
-  _ecEventsCache = [...EC_EVENTS_DEFAULT];
-  localStorage.setItem('ecEventsVersion', EC_EVENTS_VERSION);
-  localStorage.setItem('ecEvents', JSON.stringify(_ecEventsCache));
+  _ecEventsCache = [];
   return _ecEventsCache;
 }
 
@@ -3643,11 +3641,10 @@ async function syncEcEventsFromSheet() {
       localStorage.setItem('ecEventsVersion', EC_EVENTS_VERSION);
       localStorage.setItem('ecEvents', JSON.stringify(filtered));
     } else {
-      // シートが空またはヘッダーのみ → キャッシュをクリアしてデフォルトをシートに書き込む
-      _ecEventsCache = null;
+      // シートが空またはヘッダーのみ → キャッシュをクリア
+      _ecEventsCache = [];
       localStorage.removeItem('ecEvents');
       localStorage.removeItem('ecEventsVersion');
-      saveEcEvents(loadEcEvents());
     }
   } catch(e) { console.warn('EC events sheet sync failed:', e); }
 }
@@ -3978,11 +3975,7 @@ async function loadSettingEvents() {
       return _settingEventsCache;
     }
   } catch(e) { console.warn('loadSettingEvents failed', e); }
-  // フォールバック: EC_AUTO_EVENTSから生成
-  _settingEventsCache = {
-    rakuten: EC_AUTO_EVENTS.filter(e => e.type === 'rakuten').map(e => e.display),
-    amazon:  EC_AUTO_EVENTS.filter(e => e.type === 'amazon').map(e => e.display),
-  };
+  _settingEventsCache = { rakuten: [], amazon: [] };
   return _settingEventsCache;
 }
 
