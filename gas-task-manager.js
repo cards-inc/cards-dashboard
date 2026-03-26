@@ -10,6 +10,9 @@
  * 4. デプロイURLを task-dashboard.html の GAS_URL に貼り付ける
  */
 
+// ★ スプレッドシートID（URLの /d/XXXXX/edit の XXXXX 部分）
+const SPREADSHEET_ID = '1I8p4IVrMTEKHRdfLwwpW6jVty5N2DIlT7riHC0TW-xw';
+
 // タスクシートのGID（URLの #gid= の値）
 const TASK_SHEET_GID       = 235656541;
 const EC_EVENTS_SHEET_GID  = 365675538;  // ECイベントカレンダー設定シート
@@ -45,12 +48,15 @@ const COL = {
   ASSIGNEE:   11,
 };
 
-// GIDでシートを取得する
+// GIDでシートを取得する（スタンドアロン／コンテナバインド両対応）
 function getSheetByGid(gid) {
-  const ss     = SpreadsheetApp.getActiveSpreadsheet();
+  const ss = SPREADSHEET_ID
+    ? SpreadsheetApp.openById(SPREADSHEET_ID)
+    : SpreadsheetApp.getActiveSpreadsheet();
+  if (!ss) throw new Error('スプレッドシートを開けません。SPREADSHEET_ID を確認してください');
   const sheets = ss.getSheets();
   const sheet  = sheets.find(s => s.getSheetId() === Number(gid));
-  if (!sheet) throw new Error('GID ' + gid + ' のシートが見つかりません');
+  if (!sheet) throw new Error('GID ' + gid + ' のシートが見つかりません（シートID一覧: ' + sheets.map(s => s.getSheetId()).join(', ') + '）');
   return sheet;
 }
 
