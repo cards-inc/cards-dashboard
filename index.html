@@ -1710,7 +1710,10 @@ function renderTable(tasks) {
     </tr>`;
   }).join('');
 
-  document.getElementById('tableWrap').innerHTML = `
+  const wrap = document.getElementById('tableWrap');
+  const savedScrollTop = wrap.scrollTop;
+  const savedWinScroll = window.scrollY;
+  wrap.innerHTML = `
     <table>
       <thead><tr>
         ${bulkMode ? `<th style="width:32px;text-align:center"><input type="checkbox" id="bulkAllCb" onchange="toggleBulkAll(this.checked)" style="cursor:pointer;accent-color:var(--primary);width:14px;height:14px"></th>` : ''}
@@ -1727,6 +1730,8 @@ function renderTable(tasks) {
       </tr></thead>
       <tbody>${rows}</tbody>
     </table>`;
+  wrap.scrollTop = savedScrollTop;
+  window.scrollTo(0, savedWinScroll);
 
   const overdue = sorted.filter(t => t.dueDate && t.dueDate < today && t.status !== '対応完了').length;
   document.getElementById('tableFooter').style.display = '';
