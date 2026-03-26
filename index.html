@@ -2289,10 +2289,17 @@ function editBarSave(taskIdx) {
   // 対応完了にする際は実働時間必須
   const newStatus  = g('eb_st')?.value ?? t.status;
   const newHours   = parseFloat(g('eb_hrs')?.value) || 0;
+  const newComp    = g('eb_comp')?.value || '';
   if (newStatus === '対応完了' && !newHours) {
     alert('対応完了にするには実働時間を入力してください。');
-    if (g('eb_st'))  g('eb_st').value = t.status; // ステータスを元に戻す
+    if (g('eb_st'))  g('eb_st').value = t.status;
     if (g('eb_hrs')) g('eb_hrs').focus();
+    return;
+  }
+  // 完了日を入力する場合はステータスを対応完了にする必要がある
+  if (newComp && newStatus !== '対応完了') {
+    alert('完了日を入力するにはステータスを「対応完了」にしてください。');
+    if (g('eb_comp')) { g('eb_comp').value = ''; g('eb_comp').focus(); }
     return;
   }
 
@@ -2366,6 +2373,12 @@ function inlineEdit(event, td, taskIdx, field, type) {
   const inputStyle = 'width:100%;padding:5px 8px;border:2px solid var(--primary);border-radius:6px;font-size:12px;background:var(--surface);color:var(--text);outline:none;font-family:inherit;box-sizing:border-box;';
 
   const save = (val) => {
+    // 完了日を入力する場合はステータスが対応完了でないとダメ
+    if (field === 'completedDate' && val && t.status !== '対応完了') {
+      alert('完了日を入力するにはステータスを「対応完了」にしてください。');
+      applyFilters();
+      return;
+    }
     if (field === 'dueDate' || field === 'completedDate') {
       t[field] = val ? new Date(val) : null;
     } else if (field === 'workHours') {
