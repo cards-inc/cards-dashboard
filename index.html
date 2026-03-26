@@ -3739,7 +3739,11 @@ async function syncEcEventsFromSheet() {
     }
     // WBSタブが表示中なら再描画
     if (document.getElementById('tab-wbs')?.classList.contains('active')) applyWbsFilter();
-  } catch(e) { console.warn('EC events sheet sync failed:', e); }
+    console.log('[EC sync] シートから取得成功:', _ecEventsCache.length, '件');
+  } catch(e) {
+    console.warn('EC events sheet sync failed:', e);
+    showBanner('ECイベント同期エラー: ' + e.message + '（GASの再デプロイが必要かもしれません）', 'error');
+  }
 }
 
 function updateEcEventLabel(gIdx, value) {
