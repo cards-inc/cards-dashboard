@@ -143,7 +143,7 @@ function deleteTask(data) {
   if (!taskNo) throw new Error('taskNo が指定されていません');
 
   var lastRow = sheet.getLastRow();
-  for (var r = 3; r <= lastRow; r++) {
+  for (var r = 4; r <= lastRow; r++) {
     if (Number(sheet.getRange(r, COL.NO).getValue()) === taskNo) {
       sheet.deleteRow(r);
       return { status: 'ok', no: taskNo };
@@ -162,7 +162,7 @@ function editTask(data) {
 
   var lastRow = sheet.getLastRow();
   var targetRow = -1;
-  for (var r = 3; r <= lastRow; r++) {
+  for (var r = 4; r <= lastRow; r++) {
     if (Number(sheet.getRange(r, COL.NO).getValue()) === taskNo) {
       targetRow = r;
       break;
@@ -203,7 +203,7 @@ function parseDate(val) {
 
 function getLastNo(sheet) {
   var lastRow = sheet.getLastRow();
-  for (var r = lastRow; r >= 3; r--) {
+  for (var r = lastRow; r >= 4; r--) {
     var val = Number(sheet.getRange(r, COL.NO).getValue());
     if (val > 0) return val;
   }
