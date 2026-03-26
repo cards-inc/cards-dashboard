@@ -3026,7 +3026,18 @@ async function loadAutoTemplates() {
   // gvizでシートから直接読む（タスクと同じパターン）
   try {
     const table = await fetchGviz(AUTOMATION_GID);
-    _autoCache = parseAutoGviz(table);
+    const sheetTemplates = parseAutoGviz(table);
+    // シートが空でlocalStorageにデータがあれば自動マイグレーション
+    if (sheetTemplates.length === 0 && GAS_URL) {
+      let local = [];
+      try { local = JSON.parse(localStorage.getItem(AUTO_KEY) || '[]'); } catch {}
+      if (local.length > 0) {
+        try { await gasJsonp('saveAutoTemplates', { templates: local }); } catch(e) { console.warn('migration失敗', e); }
+        _autoCache = local;
+        return _autoCache;
+      }
+    }
+    _autoCache = sheetTemplates;
     return _autoCache;
   } catch(e) { console.warn('AutoTemplates gviz取得失敗、ローカルフォールバック', e); }
   // オフライン時はlocalStorageにフォールバック
