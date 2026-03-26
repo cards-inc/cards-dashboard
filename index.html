@@ -2970,25 +2970,26 @@ function updateAutoCatAll() {
 
 async function loadAutoTemplates() {
   if (_autoCache) return _autoCache;
+  // localStorageを先に読む（オフライン時・GAS失敗時のベース）
+  let local = [];
+  try { local = JSON.parse(localStorage.getItem(AUTO_KEY) || '[]'); } catch {}
   if (GAS_URL) {
     try {
       const res = await gasJsonp('getAutoTemplates', {});
       const gasTemplates = res.templates || [];
-      // GASシートが空でlocalStorageにデータがある場合は自動マイグレーション
-      if (gasTemplates.length === 0) {
-        let local = [];
-        try { local = JSON.parse(localStorage.getItem(AUTO_KEY) || '[]'); } catch {}
-        if (local.length > 0) {
-          await gasJsonp('saveAutoTemplates', { templates: local });
-          _autoCache = local;
-          return _autoCache;
-        }
+      // GASにデータがあればGASを正とする。なければlocalStorageをGASにプッシュ
+      if (gasTemplates.length > 0) {
+        _autoCache = gasTemplates;
+      } else if (local.length > 0) {
+        await gasJsonp('saveAutoTemplates', { templates: local });
+        _autoCache = local;
+      } else {
+        _autoCache = [];
       }
-      _autoCache = gasTemplates;
       return _autoCache;
     } catch(e) { console.warn('AutoTemplates取得失敗、ローカルフォールバック', e); }
   }
-  try { _autoCache = JSON.parse(localStorage.getItem(AUTO_KEY) || '[]'); } catch { _autoCache = []; }
+  _autoCache = local;
   return _autoCache;
 }
 
@@ -3002,10 +3003,11 @@ async function saveAutoTemplates(list) {
       tmpl.nextDue = next.toISOString();
     } catch(_) {}
   });
-  if (GAS_URL) {
-    try { await gasJsonp('saveAutoTemplates', { templates: list }); return; } catch(e) { console.warn('AutoTemplates保存失敗', e); }
-  }
+  // タスク追加と同様にlocalStorageとGAS両方に書く
   try { localStorage.setItem(AUTO_KEY, JSON.stringify(list)); } catch {}
+  if (GAS_URL) {
+    try { await gasJsonp('saveAutoTemplates', { templates: list }); } catch(e) { console.warn('AutoTemplates GAS保存失敗', e); }
+  }
 }
 
 function nextDateAfter(startDate, repeat, refDate, ecLabel) {
