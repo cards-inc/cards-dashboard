@@ -2358,12 +2358,13 @@ function completeExpandTask(taskIdx) {
 function deleteExpandTask(taskIdx) {
   const t = allTasks[taskIdx];
   if (!confirm(`「${t.taskName}」を削除しますか？`)) return;
-  if (GAS_URL && t.no && !t._local) {
-    gasJsonp('delete', { taskNo: t.no }).catch(e => showBanner('削除エラー: ' + e.message, 'error'));
-  }
   allTasks.splice(taskIdx, 1);
   closeAllEditBars();
   applyFilters();
+  showBanner(`「${t.taskName}」を削除しました`, 'success');
+  if (GAS_URL && t.no && !t._local) {
+    gasJsonp('delete', { taskNo: t.no }).catch(e => showBanner('シートへの削除反映に失敗: ' + e.message, 'error'));
+  }
 }
 
 function inlineEdit(event, td, taskIdx, field, type) {
