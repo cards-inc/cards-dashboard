@@ -982,8 +982,13 @@ function loadData(silent) {
   btn.classList.add('loading');
   showBanner('');
 
-  // ECイベントをシートから非同期で同期（初回のみ）
-  if (!silent && !_ecEventsCache) syncEcEventsFromSheet();
+  // ECイベントをシートから同期（更新ボタン押下時はキャッシュクリアして再取得）
+  if (!silent) {
+    _ecEventsCache = null;
+    localStorage.removeItem('ecEvents');
+    localStorage.removeItem('ecEventsVersion');
+    syncEcEventsFromSheet();
+  }
   if (!silent && !_settingEventsCache) loadSettingEvents();
 
   // キャッシュを即座に表示（初回のみ）
