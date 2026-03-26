@@ -458,7 +458,7 @@ function postSlackReport(data) {
 
   // チャンネル履歴から当日の業務報告スレッドを検索
   var threadTs = findReportThread(token, reportDate);
-  if (!threadTs) throw new Error('本日の業務報告スレッド（業務報告bot投稿）が見つかりません。15時以降に再試行してください');
+  if (!threadTs) throw new Error('本日の業務報告スレッド（業務報告bot投稿）が見つかりません。12時以降に再試行してください');
 
   // @report メンション付きでスレッドに返信
   var fullText = SLACK_REPORT_MENTION + '\n' + reportText;
