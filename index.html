@@ -787,67 +787,87 @@ tbody td { padding: 11px 16px; font-size: 13px; vertical-align: middle; }
 
 <!-- オートメーションモーダル -->
 <div class="modal-overlay" id="autoModal" onclick="if(event.target===this)closeAutoModal()">
-  <div class="modal">
-    <h2 id="autoModalTitle">テンプレートを追加</h2>
+  <div class="modal" style="max-width:560px">
+    <h2 id="autoModalTitle" style="margin-bottom:4px">テンプレートを追加</h2>
+    <p style="font-size:12px;color:var(--text2);margin:0 0 16px">繰り返しタスクの自動生成テンプレートを設定します</p>
     <input type="hidden" id="auto_editIndex" value="">
-    <div class="modal-grid">
-      <div class="modal-field">
-        <label>カテゴリ（複数選択可）<span style="color:var(--danger)">*</span></label>
-        <div id="auto_cat_list" style="border:1px solid var(--border);border-radius:8px;max-height:120px;overflow-y:auto;padding:4px 0;background:var(--surface)">
+
+    <!-- セクション: タスク情報 -->
+    <div style="border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:12px">
+      <div style="background:var(--primary);color:#fff;padding:8px 14px;font-size:12px;font-weight:700;letter-spacing:.04em">📝 タスク情報</div>
+      <div style="padding:12px 14px;display:flex;flex-direction:column;gap:10px">
+        <div class="modal-field" style="margin:0">
+          <label>タスク内容 <span style="color:var(--danger)">*</span></label>
+          <input type="text" id="auto_taskName" placeholder="自動生成するタスク内容">
+        </div>
+        <div class="modal-field" style="margin:0">
+          <label>詳細</label>
+          <textarea id="auto_detail" placeholder="詳細（任意）" style="min-height:52px"></textarea>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <div class="modal-field" style="margin:0">
+            <label>担当者 <span style="color:var(--danger)">*</span></label>
+            <select id="auto_assignee"><option value="">選択してください</option></select>
+          </div>
+          <div class="modal-field" style="margin:0" id="auto_dueDays_field">
+            <label>期限（生成日から何日後）</label>
+            <input type="number" id="auto_dueDays" value="7" min="0" max="365" placeholder="7">
+          </div>
+          <div class="modal-field" style="margin:0;grid-column:1/-1" id="auto_dueDays_ec" style="display:none">
+            <label>タスク期限</label>
+            <div style="padding:7px 10px;background:var(--primary-light);border:1px solid var(--border);border-radius:8px;font-size:12px;color:var(--primary);font-weight:600;line-height:1.8">期限: イベント開始2営業日前<br><span style="color:var(--text2);font-weight:400">記載日: イベント開始5営業日前</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- セクション: 対象カテゴリ -->
+    <div style="border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:12px">
+      <div style="background:#4f7096;color:#fff;padding:8px 14px;font-size:12px;font-weight:700;letter-spacing:.04em">🏷️ 対象カテゴリ（複数選択可）</div>
+      <div style="padding:10px 14px">
+        <div id="auto_cat_list" style="border:1px solid var(--border);border-radius:8px;max-height:110px;overflow-y:auto;padding:4px 0;background:var(--surface)">
           <div style="padding:8px 12px;color:var(--text2);font-size:13px">読み込み中...</div>
         </div>
-        <label style="display:flex;align-items:center;gap:6px;margin-top:5px;font-size:12px;cursor:pointer;color:var(--text2)">
+        <label style="display:flex;align-items:center;gap:6px;margin-top:6px;font-size:12px;cursor:pointer;color:var(--text2)">
           <input type="checkbox" id="auto_cat_all" onchange="autoCatToggleAll(this.checked)"> すべて選択
         </label>
       </div>
-      <div class="modal-field">
-        <label>担当者 <span style="color:var(--danger)">*</span></label>
-        <select id="auto_assignee">
-          <option value="">選択してください</option>
-        </select>
-      </div>
-      <div class="modal-field full">
-        <label>ECイベント連動（任意）</label>
-        <select id="auto_ecEvent" onchange="applyEcEventLink()" style="width:100%;border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-size:13px;background:var(--surface);color:var(--text);font-family:inherit">
-          <option value="">連動しない</option>
-        </select>
-        <div style="font-size:11px;color:var(--text2);margin-top:4px">選択すると、イベント名と開始日を自動入力します</div>
-      </div>
-      <div class="modal-field full">
-        <label>タスク内容 <span style="color:var(--danger)">*</span></label>
-        <input type="text" id="auto_taskName" placeholder="自動生成するタスク内容">
-      </div>
-      <div class="modal-field full">
-        <label>詳細</label>
-        <textarea id="auto_detail" placeholder="詳細（任意）"></textarea>
-      </div>
-      <div class="modal-field" id="auto_repeat_field">
-        <label>繰り返し</label>
-        <select id="auto_repeat">
-          <option value="daily">毎日</option>
-          <option value="weekly" selected>毎週</option>
-          <option value="biweekly">隔週</option>
-          <option value="monthly">毎月</option>
-          <option value="ec_event">イベントごと</option>
-        </select>
-      </div>
-      <div class="modal-field" id="auto_repeat_ec_label" style="display:none">
-        <label>繰り返し</label>
-        <div style="padding:8px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;font-size:13px;color:var(--primary);font-weight:600">イベントごと（連動イベント発生時）</div>
-      </div>
-      <div class="modal-field">
-        <label>開始日（初回 / 次回イベント日）</label>
-        <input type="date" id="auto_startDate">
-      </div>
-      <div class="modal-field" id="auto_dueDays_field">
-        <label>タスク期限（生成日から何日後）</label>
-        <input type="number" id="auto_dueDays" value="7" min="0" max="365" placeholder="7">
-      </div>
-      <div class="modal-field" id="auto_dueDays_ec" style="display:none">
-        <label>タスク期限</label>
-        <div style="padding:8px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;font-size:12px;color:var(--primary);font-weight:600;line-height:1.8">期限: イベント開始2営業日前<br><span style="color:var(--text2);font-weight:400">記載日: イベント開始5営業日前</span></div>
+    </div>
+
+    <!-- セクション: スケジュール -->
+    <div style="border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:16px">
+      <div style="background:#059669;color:#fff;padding:8px 14px;font-size:12px;font-weight:700;letter-spacing:.04em">🔁 スケジュール</div>
+      <div style="padding:12px 14px;display:flex;flex-direction:column;gap:10px">
+        <div class="modal-field" style="margin:0">
+          <label>ECイベント連動（任意）</label>
+          <select id="auto_ecEvent" onchange="applyEcEventLink()" style="width:100%;border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-size:13px;background:var(--surface);color:var(--text);font-family:inherit">
+            <option value="">連動しない</option>
+          </select>
+          <div style="font-size:11px;color:var(--text2);margin-top:3px">選択すると次回イベント日を自動入力します</div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <div class="modal-field" style="margin:0" id="auto_repeat_field">
+            <label>繰り返し</label>
+            <select id="auto_repeat">
+              <option value="daily">毎日</option>
+              <option value="weekly" selected>毎週</option>
+              <option value="biweekly">隔週</option>
+              <option value="monthly">毎月</option>
+              <option value="ec_event">イベントごと</option>
+            </select>
+          </div>
+          <div class="modal-field" style="margin:0" id="auto_repeat_ec_label" style="display:none">
+            <label>繰り返し</label>
+            <div style="padding:8px 10px;background:var(--primary-light);border:1px solid var(--border);border-radius:8px;font-size:13px;color:var(--primary);font-weight:600">イベントごと</div>
+          </div>
+          <div class="modal-field" style="margin:0">
+            <label>開始日（初回 / 次回イベント日）</label>
+            <input type="date" id="auto_startDate">
+          </div>
+        </div>
       </div>
     </div>
+
     <div class="modal-actions">
       <button class="modal-cancel" onclick="closeAutoModal()">キャンセル</button>
       <button id="autoDeleteBtn" style="display:none;margin-right:auto;font-size:13px;padding:8px 16px;border:1px solid var(--danger);border-radius:8px;background:var(--surface);color:var(--danger);cursor:pointer;font-family:inherit" onclick="deleteAutoTemplate()">削除</button>
@@ -967,6 +987,9 @@ function loadData(silent) {
   const btn = document.getElementById('refreshBtn');
   btn.classList.add('loading');
   showBanner('');
+
+  // ECイベントをシートから非同期で同期（初回のみ）
+  if (!silent && !_ecEventsCache) syncEcEventsFromSheet();
 
   // キャッシュを即座に表示（初回のみ）
   if (!silent) {
@@ -1848,7 +1871,7 @@ function renderWBS(tasks, groupBy = 'category') {
   const barDefs = [];
   let currentTopPx = SECTION_HEAD_H;
 
-  // CSS背景（weekends/today帯 + 縦グリッド線）を1度だけ計算して全行で共有
+  // CSS背景をstyleタグに1回だけ注入（各行にインライン埋め込みするとHTML肥大化→読み込み遅延）
   const bgStops = [];
   days.forEach((d, i) => {
     const col = (i === todayIdx) ? '#fff5f5' : isNonWorkday(d) ? '#fafafa' : 'rgba(0,0,0,0)';
@@ -1857,7 +1880,9 @@ function renderWBS(tasks, groupBy = 'category') {
   });
   const _bandsBg = `linear-gradient(to right,${bgStops.join(',')})`;
   const _gridBg  = `repeating-linear-gradient(to right,transparent 0,transparent ${COL_W-1}px,#e2e8f0 ${COL_W-1}px,#e2e8f0 ${COL_W}px)`;
-  const _rowBg   = `background-image:${_gridBg},${_bandsBg};background-size:${totalW}px 100%;background-repeat:no-repeat`;
+  let _wbsStyle = document.getElementById('_wbsRowStyle');
+  if (!_wbsStyle) { _wbsStyle = document.createElement('style'); _wbsStyle.id = '_wbsRowStyle'; document.head.appendChild(_wbsStyle); }
+  _wbsStyle.textContent = `.wbs-row-bg{background-image:${_gridBg},${_bandsBg};background-size:${totalW}px 100%;background-repeat:no-repeat}`;
 
   // タスクセクションヘッダー行
   const taskHeadSpan = `<div style="width:${totalW}px;height:${SECTION_HEAD_H}px;background:#7c8fa1;display:flex;align-items:center;padding:0 16px;color:#fff;font-size:11px;font-weight:800;letter-spacing:.12em">TASKS</div>`;
@@ -1865,11 +1890,11 @@ function renderWBS(tasks, groupBy = 'category') {
 
   groups.forEach(g => {
     const CAT_H = 34, ROW_H = 40;
-    timelineRowsHTML += `<div class="wbs-trow cat" style="height:${CAT_H}px;${_rowBg}"></div>`;
+    timelineRowsHTML += `<div class="wbs-trow cat" style="height:${CAT_H}px"></div>`;
     currentTopPx += CAT_H;
 
     validTasks.filter(t => t[groupKey] === g).forEach(t => {
-      timelineRowsHTML += `<div class="wbs-trow" style="height:${ROW_H}px;${_rowBg}"></div>`;
+      timelineRowsHTML += `<div class="wbs-trow wbs-row-bg" style="height:${ROW_H}px"></div>`;
 
       // バー定義
       const start = t.entryDate || t.dueDate;
@@ -2037,7 +2062,7 @@ function openEditBar(taskIdx) {
 
   // No列：番号＋アクションボタン
   cells[off+0].onclick = e => e.stopPropagation();
-  cells[off+0].innerHTML = `<button onclick="event.stopPropagation();deleteExpandTask(${taskIdx})" style="font-size:12px;padding:6px 12px;border:none;border-radius:6px;background:var(--danger,#ef4444);color:#fff;cursor:pointer;white-space:nowrap;font-weight:700;width:100%">削除</button>`;
+  cells[off+0].innerHTML = `<button onclick="event.stopPropagation();deleteExpandTask(${taskIdx})" style="font-size:11px;padding:3px 8px;border:none;border-radius:5px;background:var(--danger,#ef4444);color:#fff;cursor:pointer;white-space:nowrap;font-weight:700;width:100%">削除</button>`;
 
   // 記載日：表示のまま
   cells[off+1].onclick = e => e.stopPropagation();
@@ -3493,18 +3518,18 @@ const EC_EVENTS_DEFAULT = [
   // ── 楽天市場 2024 ──
   { label: 'お買い物マラソン', start: '2024-01-09', end: '2024-01-16', color: '#bf1515', type: 'rakuten' },
   { label: 'お買い物マラソン', start: '2024-02-04', end: '2024-02-11', color: '#bf1515', type: 'rakuten' },
-  { label: 'スーパーSALE',     start: '2024-03-04', end: '2024-03-11', color: '#e91e63', type: 'rakuten' },
+  { label: 'スーパーSALE',     start: '2024-03-04', end: '2024-03-11', color: '#f97316', type: 'rakuten' },
   { label: 'お買い物マラソン', start: '2024-04-09', end: '2024-04-16', color: '#bf1515', type: 'rakuten' },
   { label: 'お買い物マラソン', start: '2024-05-09', end: '2024-05-16', color: '#bf1515', type: 'rakuten' },
-  { label: 'スーパーSALE',     start: '2024-06-04', end: '2024-06-11', color: '#e91e63', type: 'rakuten' },
+  { label: 'スーパーSALE',     start: '2024-06-04', end: '2024-06-11', color: '#f97316', type: 'rakuten' },
   { label: 'お買い物マラソン', start: '2024-07-04', end: '2024-07-11', color: '#bf1515', type: 'rakuten' },
   { label: 'お買い物マラソン', start: '2024-08-04', end: '2024-08-11', color: '#bf1515', type: 'rakuten' },
-  { label: 'スーパーSALE',     start: '2024-09-04', end: '2024-09-11', color: '#e91e63', type: 'rakuten' },
+  { label: 'スーパーSALE',     start: '2024-09-04', end: '2024-09-11', color: '#f97316', type: 'rakuten' },
   { label: 'お買い物マラソン', start: '2024-10-04', end: '2024-10-11', color: '#bf1515', type: 'rakuten' },
   { label: 'ブラックフライデー', start: '2024-11-01', end: '2024-11-11', color: '#1a1a2e', type: 'rakuten' },
   { label: 'イーグルス感謝祭',  start: '2024-11-14', end: '2024-11-20', color: '#1b5e20', type: 'rakuten' },
   { label: 'お買い物マラソン', start: '2024-11-19', end: '2024-11-26', color: '#bf1515', type: 'rakuten' },
-  { label: 'スーパーSALE',     start: '2024-12-05', end: '2024-12-11', color: '#e91e63', type: 'rakuten' },
+  { label: 'スーパーSALE',     start: '2024-12-05', end: '2024-12-11', color: '#f97316', type: 'rakuten' },
   { label: '大感謝祭',         start: '2024-12-19', end: '2024-12-26', color: '#d32f2f', type: 'rakuten' },
   // ── Amazon Japan 2024 ──
   { label: '新生活セール',   start: '2024-03-01', end: '2024-03-05', color: '#2e7d32', type: 'amazon' },
@@ -3518,21 +3543,21 @@ const EC_EVENTS_DEFAULT = [
   // ── 楽天市場 2025 ──
   { label: 'お買い物マラソン', start: '2025-01-09', end: '2025-01-16', color: '#bf1515', type: 'rakuten' },
   { label: 'お買い物マラソン', start: '2025-02-04', end: '2025-02-11', color: '#bf1515', type: 'rakuten' },
-  { label: 'スーパーSALE',     start: '2025-03-04', end: '2025-03-11', color: '#e91e63', type: 'rakuten' },
+  { label: 'スーパーSALE',     start: '2025-03-04', end: '2025-03-11', color: '#f97316', type: 'rakuten' },
   { label: 'お買い物マラソン', start: '2025-03-19', end: '2025-03-26', color: '#bf1515', type: 'rakuten' },
   { label: 'お買い物マラソン', start: '2025-04-24', end: '2025-05-01', color: '#bf1515', type: 'rakuten' },
-  { label: 'スーパーSALE',     start: '2025-06-04', end: '2025-06-09', color: '#e91e63', type: 'rakuten' },
+  { label: 'スーパーSALE',     start: '2025-06-04', end: '2025-06-09', color: '#f97316', type: 'rakuten' },
   { label: 'お買い物マラソン', start: '2025-06-18', end: '2025-06-25', color: '#bf1515', type: 'rakuten' },
   { label: 'お買い物マラソン', start: '2025-07-04', end: '2025-07-11', color: '#bf1515', type: 'rakuten' },
   { label: 'お買い物マラソン', start: '2025-08-04', end: '2025-08-11', color: '#bf1515', type: 'rakuten' },
-  { label: 'スーパーSALE',     start: '2025-09-04', end: '2025-09-09', color: '#e91e63', type: 'rakuten' },
+  { label: 'スーパーSALE',     start: '2025-09-04', end: '2025-09-09', color: '#f97316', type: 'rakuten' },
   { label: 'お買い物マラソン', start: '2025-09-19', end: '2025-09-26', color: '#bf1515', type: 'rakuten' },
   { label: 'お買い物マラソン', start: '2025-10-04', end: '2025-10-09', color: '#bf1515', type: 'rakuten' },
   { label: 'お買い物マラソン', start: '2025-10-14', end: '2025-10-17', color: '#bf1515', type: 'rakuten' },
   { label: 'お買い物マラソン', start: '2025-10-24', end: '2025-10-27', color: '#bf1515', type: 'rakuten' },
   { label: 'イーグルス感謝祭', start: '2025-11-14', end: '2025-11-16', color: '#1b5e20', type: 'rakuten' },
   { label: 'ブラックフライデー', start: '2025-11-20', end: '2025-11-27', color: '#1a1a2e', type: 'rakuten' },
-  { label: 'スーパーSALE',     start: '2025-12-04', end: '2025-12-11', color: '#e91e63', type: 'rakuten' },
+  { label: 'スーパーSALE',     start: '2025-12-04', end: '2025-12-11', color: '#f97316', type: 'rakuten' },
   { label: '大感謝祭',         start: '2025-12-19', end: '2025-12-26', color: '#d32f2f', type: 'rakuten' },
   // ── Amazon Japan 2025 ──
   { label: 'スマイルSALE',   start: '2025-01-31', end: '2025-02-03', color: '#ff9900', type: 'amazon' },
@@ -3546,19 +3571,19 @@ const EC_EVENTS_DEFAULT = [
   { label: 'ブラックフライデー', start: '2025-11-24', end: '2025-12-01', color: '#1a1a2e', type: 'amazon' },
   { label: 'タイムセール祭り', start: '2025-12-16', end: '2025-12-25', color: '#e64a00', type: 'amazon' },
   // ── 楽天市場 2026（確定・予測）──
-  { label: 'スーパーSALE',     start: '2026-03-04', end: '2026-03-11', color: '#e91e63', type: 'rakuten' },
+  { label: 'スーパーSALE',     start: '2026-03-04', end: '2026-03-11', color: '#f97316', type: 'rakuten' },
   { label: 'お買い物マラソン', start: '2026-03-21', end: '2026-03-28', color: '#bf1515', type: 'rakuten' },
   { label: 'お買い物マラソン', start: '2026-04-18', end: '2026-04-25', color: '#bf1515', type: 'rakuten' },
   { label: 'お買い物マラソン', start: '2026-05-04', end: '2026-05-11', color: '#bf1515', type: 'rakuten' },
-  { label: 'スーパーSALE',     start: '2026-06-04', end: '2026-06-09', color: '#e91e63', type: 'rakuten' },
+  { label: 'スーパーSALE',     start: '2026-06-04', end: '2026-06-09', color: '#f97316', type: 'rakuten' },
   { label: 'お買い物マラソン', start: '2026-06-18', end: '2026-06-25', color: '#bf1515', type: 'rakuten' },
   { label: 'お買い物マラソン', start: '2026-07-04', end: '2026-07-11', color: '#bf1515', type: 'rakuten' },
   { label: 'お買い物マラソン', start: '2026-08-04', end: '2026-08-11', color: '#bf1515', type: 'rakuten' },
-  { label: 'スーパーSALE',     start: '2026-09-04', end: '2026-09-09', color: '#e91e63', type: 'rakuten' },
+  { label: 'スーパーSALE',     start: '2026-09-04', end: '2026-09-09', color: '#f97316', type: 'rakuten' },
   { label: 'お買い物マラソン', start: '2026-09-19', end: '2026-09-26', color: '#bf1515', type: 'rakuten' },
   { label: 'お買い物マラソン', start: '2026-10-04', end: '2026-10-11', color: '#bf1515', type: 'rakuten' },
   { label: 'ブラックフライデー', start: '2026-11-19', end: '2026-11-26', color: '#1a1a2e', type: 'rakuten' },
-  { label: 'スーパーSALE',     start: '2026-12-04', end: '2026-12-09', color: '#e91e63', type: 'rakuten' },
+  { label: 'スーパーSALE',     start: '2026-12-04', end: '2026-12-09', color: '#f97316', type: 'rakuten' },
   { label: '大感謝祭',         start: '2026-12-18', end: '2026-12-25', color: '#d32f2f', type: 'rakuten' },
   // ── Amazon Japan 2026（確定・予測）──
   { label: 'スマイルSALE',   start: '2026-03-27', end: '2026-04-01', color: '#ff9900', type: 'amazon' },
@@ -3587,21 +3612,58 @@ function ecSpecialDayEvents(minD, maxD) {
   return evs;
 }
 
-// ── ECイベント localStorage 管理 ──
+// ── ECイベント管理（シート優先 + localStorage キャッシュ）──
 const EC_EVENTS_VERSION = '2026v1';
+let _ecEventsCache = null;
+
 function loadEcEvents() {
+  if (_ecEventsCache) return _ecEventsCache;
   try {
     const ver = localStorage.getItem('ecEventsVersion');
     const s   = localStorage.getItem('ecEvents');
-    if (s && ver === EC_EVENTS_VERSION) return JSON.parse(s);
+    if (s && ver === EC_EVENTS_VERSION) { _ecEventsCache = JSON.parse(s); return _ecEventsCache; }
   } catch(_) {}
-  // バージョン不一致 or 未保存 → デフォルトで初期化
-  saveEcEvents([...EC_EVENTS_DEFAULT]);
-  return [...EC_EVENTS_DEFAULT];
+  _ecEventsCache = [...EC_EVENTS_DEFAULT];
+  saveEcEvents(_ecEventsCache);
+  return _ecEventsCache;
 }
+
 function saveEcEvents(evs) {
+  _ecEventsCache = evs;
   localStorage.setItem('ecEventsVersion', EC_EVENTS_VERSION);
   localStorage.setItem('ecEvents', JSON.stringify(evs));
+  // GASシートにも同期
+  if (GAS_URL) gasJsonp('replaceEcEvents', { events: evs }).catch(e => console.warn('EC events sync:', e));
+}
+
+// 起動時にシートから最新データを取得してキャッシュを更新
+async function syncEcEventsFromSheet() {
+  if (!GAS_URL) return;
+  try {
+    const res = await gasJsonp('getEcEvents', {});
+    if (res.events && res.events.length) {
+      // シートデータに色を補完
+      res.events.forEach(e => {
+        if (!e.color) {
+          const def = EC_AUTO_EVENTS.find(d => d.display === e.label || d.keywords?.some(k => e.label.includes(k)));
+          e.color = def?.color || (e.type === 'rakuten' ? '#bf1515' : '#e07b00');
+        }
+      });
+      _ecEventsCache = res.events;
+      localStorage.setItem('ecEventsVersion', EC_EVENTS_VERSION);
+      localStorage.setItem('ecEvents', JSON.stringify(res.events));
+    }
+  } catch(e) { console.warn('EC events sheet sync failed:', e); }
+}
+
+function updateEcEventLabel(gIdx, value) {
+  if (!value.trim()) return;
+  const evs = loadEcEvents();
+  if (!evs[gIdx]) return;
+  evs[gIdx].label = value.trim();
+  saveEcEvents(evs);
+  applyWbsFilter();
+  showBanner('イベント名を更新しました', 'success');
 }
 
 function toggleEcPanel() {
@@ -3631,9 +3693,10 @@ function _renderEcTable(type, tableId) {
     const color = def ? def.color : e.color;
     const rowBg = `${color}12`;
     const dateInpSt = `border:1px solid transparent;border-radius:6px;padding:3px 6px;font-size:12px;font-family:inherit;background:transparent;color:var(--text);cursor:pointer;width:110px;box-sizing:border-box`;
+    const labelInpSt = `border:1px solid transparent;border-radius:6px;padding:3px 6px;font-size:13px;font-family:inherit;font-weight:600;background:transparent;color:${color};cursor:pointer;width:160px;box-sizing:border-box`;
     return `<tr style="border-left:3px solid ${color};background:${rowBg}">
       <td style="padding:6px 10px"><span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:${color};vertical-align:middle"></span></td>
-      <td style="font-size:13px;padding:6px 10px;font-weight:600;color:${color}">${esc(e.label)}</td>
+      <td style="padding:3px 6px"><input type="text" value="${esc(e.label)}" style="${labelInpSt}" onmouseover="this.style.border='1px solid var(--border)'" onmouseout="this.style.border='1px solid transparent'" onchange="updateEcEventLabel(${e.gIdx},this.value)"></td>
       <td style="padding:3px 6px"><input type="date" value="${e.start}" style="${dateInpSt}" onmouseover="this.style.border='1px solid var(--border)'" onmouseout="this.style.border='1px solid transparent'" onchange="updateEcEventDate(${e.gIdx},'start',this.value)"></td>
       <td style="padding:3px 6px"><input type="date" value="${e.end || e.start}" style="${dateInpSt}" onmouseover="this.style.border='1px solid var(--border)'" onmouseout="this.style.border='1px solid transparent'" onchange="updateEcEventDate(${e.gIdx},'end',this.value)"></td>
       <td style="padding:4px 6px">
@@ -3660,7 +3723,7 @@ function _renderEcTable(type, tableId) {
 
   document.getElementById(tableId).innerHTML = `
     <thead style="position:sticky;top:0;z-index:2;background:var(--surface2)"><tr>
-      <th style="width:28px"></th><th>イベント名</th>
+      <th style="width:28px"></th><th style="width:170px">イベント名</th>
       <th style="width:110px">開始日</th><th style="width:110px">終了日</th>
       <th style="width:60px"></th>
     </tr></thead>
@@ -3920,8 +3983,8 @@ async function autoGenerateTask(i, genDate, manual) {
 const EC_AUTO_EVENTS = [
   { id: 'Rakuten_お買い物マラソン',       display: 'お買い物マラソン',      type: 'rakuten', color: '#bf1515', keywords: ['マラソン', 'お買い物マラソン'] },
   { id: 'Rakuten_お買い物マラソン×5,0日', display: 'お買い物マラソン×5,0日', type: 'rakuten', color: '#7c1010', keywords: ['マラソン×5', 'お買い物マラソン×5', 'マラソン×50'] },
-  { id: 'Rakuten_スーパーSALE',           display: 'スーパーSALE',          type: 'rakuten', color: '#e91e63', keywords: ['スーパーSALE', 'スーパーセール'] },
-  { id: 'Rakuten_スーパーSALE×5,0日',     display: 'スーパーSALE×5,0日',    type: 'rakuten', color: '#ad1457', keywords: ['スーパーSALE×5', 'スーパーセール×5'] },
+  { id: 'Rakuten_スーパーSALE',           display: 'スーパーSALE',          type: 'rakuten', color: '#f97316', keywords: ['スーパーSALE', 'スーパーセール'] },
+  { id: 'Rakuten_スーパーSALE×5,0日',     display: 'スーパーSALE×5,0日',    type: 'rakuten', color: '#ea6a0a', keywords: ['スーパーSALE×5', 'スーパーセール×5'] },
   { id: 'Rakuten_ワンダフルデー',          display: 'ワンダフルデー',         type: 'rakuten', color: '#c2185b', keywords: ['ワンダフルデー'], autoGen: true },
   { id: 'Rakuten_ご愛顧感謝デー',          display: 'ご愛顧感謝デー',         type: 'rakuten', color: '#7b1fa2', keywords: ['ご愛顧感謝'], autoGen: true },
   { id: 'Rakuten_ブラックフライデー',      display: 'ブラックフライデー',     type: 'rakuten', color: '#1a1a2e', keywords: ['ブラックフライデー'] },

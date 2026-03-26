@@ -11,7 +11,23 @@
  */
 
 // タスクシートのGID（URLの #gid= の値）
-const TASK_SHEET_GID = 235656541;
+const TASK_SHEET_GID       = 235656541;
+const EC_EVENTS_SHEET_GID  = 365675538;  // ECイベントカレンダー設定シート
+const AUTOMATION_SHEET_GID = 1898911664; // オートメーションシート
+
+// オートメーションシート列定義（1始まり）
+const AUTO_COL = {
+  CATEGORIES:     2,  // B: カテゴリ（カンマ区切り）
+  ASSIGNEE:       3,  // C: 担当者
+  EC_EVENT:       4,  // D: ECイベント連動
+  TASK_NAME:      5,  // E: タスク内容
+  DETAIL:         6,  // F: 詳細
+  REPEAT:         7,  // G: 繰り返し
+  START_DATE:     8,  // H: 開始日
+  DUE_DAYS:       9,  // I: タスク期限（日数）
+  LAST_GENERATED: 10, // J: 最終生成日（GAS管理）
+  NEXT_DUE:       11, // K: 次回生成日（GAS管理）
+};
 
 // シート列定義（1始まり）
 // A=1(空), B=2(No.), C=3(記載日), D=4(カテゴリ), E=5(ステータス),
@@ -69,6 +85,12 @@ function doGet(e) {
     } else if (action === 'saveAutoTemplates') {
       const data = JSON.parse(e.parameter.data || '{}');
       saveAutoTemplatesData(data.templates || []);
+      result = { status: 'ok' };
+    } else if (action === 'getEcEvents') {
+      result = { status: 'ok', events: getEcEventsFromSheet() };
+    } else if (action === 'replaceEcEvents') {
+      const data = JSON.parse(e.parameter.data || '{}');
+      replaceEcEvents(data);
       result = { status: 'ok' };
     } else {
       result = { status: 'error', message: '不明なアクション: ' + action };
@@ -454,72 +476,159 @@ function sendDailyAlert() {
     });
   }
 
-  postToSlack(text, null);
+  // 業務報告スレッドを検索して返信、見つからなければスタンドアロンで投稿
+  let thread_ts = null;
+  try {
+    if (SLACK_BOT_TOKEN && SLACK_CHANNEL_ID) {
+      const res  = UrlFetchApp.fetch(
+        'https://slack.com/api/conversations.history?channel=' + SLACK_CHANNEL_ID + '&limit=100',
+        { headers: { Authorization: 'Bearer ' + SLACK_BOT_TOKEN } }
+      );
+      const json = JSON.parse(res.getContentText());
+      if (json.ok) {
+        const todayLabel = Utilities.formatDate(today, 'Asia/Tokyo', 'yyyy年M月d日');
+        const msg = (json.messages || []).find(function(m) {
+          return m.text && m.text.includes('業務報告') && m.text.includes(todayLabel);
+        });
+        if (msg) thread_ts = msg.ts;
+      }
+    }
+  } catch(e) { Logger.log('業務報告スレッド検索失敗: ' + e); }
+
+  postToSlack(text, thread_ts);
 }
 
-// トリガー設定（GASエディタから1度だけ手動実行）
+// トリガー設定: 毎日16時に sendDailyAlert を実行（業務報告スレッド返信用）
 function setupDailyAlertTrigger() {
-  // 既存トリガー削除
   ScriptApp.getProjectTriggers()
-    .filter(t => t.getHandlerFunction() === 'sendDailyAlert')
-    .forEach(t => ScriptApp.deleteTrigger(t));
-
-  // 毎朝9時（JST）に実行
+    .filter(function(t) { return t.getHandlerFunction() === 'sendDailyAlert'; })
+    .forEach(function(t) { ScriptApp.deleteTrigger(t); });
   ScriptApp.newTrigger('sendDailyAlert')
-    .timeBased()
-    .atHour(9)
-    .everyDays(1)
-    .inTimezone('Asia/Tokyo')
-    .create();
-
-  Logger.log('毎朝9時のアラートトリガーを設定しました');
+    .timeBased().atHour(16).everyDays(1).inTimezone('Asia/Tokyo').create();
+  Logger.log('タスクアラートトリガーを設定しました（毎日16時）');
 }
 
 // ──────────────────────────────
-// AutoTemplates シート管理
+// ECイベントシート管理（gid=365675538）
+// 構造: Row1=セクションラベル(楽天市場/Amazon), Row2=列ヘッダ, Row3+=データ
+// 列: A(空), B=楽天イベント名, C=楽天開始日, D=楽天終了日, E(空), F=AmazonIベント名, G=Amazon開始日, H=Amazon終了日
 // ──────────────────────────────
-const AUTO_TEMPLATES_SHEET_NAME = 'AutoTemplates';
+function getEcEventsFromSheet() {
+  try {
+    const sheet = getSheetByGid(EC_EVENTS_SHEET_GID);
+    const lastRow = sheet.getLastRow();
+    if (lastRow < 3) return [];
+    const data = sheet.getRange(3, 1, lastRow - 2, 8).getValues();
+    const events = [];
+    const fmtD = function(v) {
+      if (!v) return null;
+      try { return Utilities.formatDate(new Date(v), 'Asia/Tokyo', 'yyyy-MM-dd'); } catch(_) { return null; }
+    };
+    data.forEach(function(row) {
+      if (row[1]) events.push({ label: String(row[1]), start: fmtD(row[2]), end: fmtD(row[3]), type: 'rakuten' });
+      if (row[5]) events.push({ label: String(row[5]), start: fmtD(row[6]), end: fmtD(row[7]), type: 'amazon' });
+    });
+    return events;
+  } catch(e) { Logger.log('getEcEventsFromSheet error: ' + e); return []; }
+}
 
-function getOrCreateAutoSheet() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  let sheet = ss.getSheetByName(AUTO_TEMPLATES_SHEET_NAME);
-  if (!sheet) {
-    sheet = ss.insertSheet(AUTO_TEMPLATES_SHEET_NAME);
-    sheet.getRange('A1').setValue('[]');
+function replaceEcEvents(data) {
+  const sheet = getSheetByGid(EC_EVENTS_SHEET_GID);
+  const lastRow = sheet.getLastRow();
+  if (lastRow >= 3) sheet.getRange(3, 1, lastRow - 2, 8).clearContent();
+  const events = data.events || [];
+  const rakuten = events.filter(function(e) { return e.type === 'rakuten'; });
+  const amazon  = events.filter(function(e) { return e.type === 'amazon'; });
+  const len = Math.max(rakuten.length, amazon.length);
+  if (!len) return { status: 'ok' };
+  const rows = [];
+  for (let i = 0; i < len; i++) {
+    const r = rakuten[i] || {}, a = amazon[i] || {};
+    rows.push(['', r.label||'', r.start||'', r.end||'', '', a.label||'', a.start||'', a.end||'']);
   }
-  return sheet;
+  sheet.getRange(3, 1, rows.length, 8).setValues(rows);
+  return { status: 'ok' };
 }
 
+// ──────────────────────────────
+// オートメーションシート管理（gid=1898911664）
+// Row1=ヘッダ, Row2+=データ
+// ──────────────────────────────
 function getAutoTemplates() {
-  const sheet = getOrCreateAutoSheet();
-  const val = sheet.getRange('A1').getValue();
-  try { return JSON.parse(val || '[]'); } catch(_) { return []; }
+  try {
+    const sheet = getSheetByGid(AUTOMATION_SHEET_GID);
+    const lastRow = sheet.getLastRow();
+    if (lastRow < 2) return [];
+    const data = sheet.getRange(2, 1, lastRow - 1, 11).getValues();
+    return data
+      .map(function(row, i) {
+        if (!row[AUTO_COL.TASK_NAME - 1]) return null;
+        const catsRaw = String(row[AUTO_COL.CATEGORIES - 1] || '');
+        const startVal = row[AUTO_COL.START_DATE - 1];
+        const lastGenVal = row[AUTO_COL.LAST_GENERATED - 1];
+        const nextDueVal = row[AUTO_COL.NEXT_DUE - 1];
+        return {
+          _row:          i + 2,
+          categories:    catsRaw ? catsRaw.split(',').map(function(s){ return s.trim(); }) : [],
+          assignee:      String(row[AUTO_COL.ASSIGNEE - 1] || ''),
+          ecEventLabel:  row[AUTO_COL.EC_EVENT - 1] || null,
+          taskName:      String(row[AUTO_COL.TASK_NAME - 1] || ''),
+          detail:        String(row[AUTO_COL.DETAIL - 1] || ''),
+          repeat:        String(row[AUTO_COL.REPEAT - 1] || 'weekly'),
+          startDate:     startVal ? new Date(startVal).toISOString() : null,
+          dueDays:       parseInt(row[AUTO_COL.DUE_DAYS - 1]) || 7,
+          lastGenerated: lastGenVal ? new Date(lastGenVal).toISOString() : null,
+          nextDue:       nextDueVal ? new Date(nextDueVal).toISOString() : null,
+        };
+      })
+      .filter(Boolean);
+  } catch(e) { Logger.log('getAutoTemplates error: ' + e); return []; }
 }
 
 function saveAutoTemplatesData(templates) {
-  const sheet = getOrCreateAutoSheet();
-  sheet.getRange('A1').setValue(JSON.stringify(templates));
+  try {
+    const sheet = getSheetByGid(AUTOMATION_SHEET_GID);
+    const lastRow = sheet.getLastRow();
+    if (lastRow > 1) sheet.getRange(2, 1, lastRow - 1, 11).clearContent();
+    if (!templates.length) return;
+    const rows = templates.map(function(tmpl) {
+      const cats = Array.isArray(tmpl.categories) ? tmpl.categories : (tmpl.category ? [tmpl.category] : []);
+      return [
+        '',
+        cats.join(', '),
+        tmpl.assignee || '',
+        tmpl.ecEventLabel || '',
+        tmpl.taskName || '',
+        tmpl.detail || '',
+        tmpl.repeat || 'weekly',
+        tmpl.startDate ? new Date(tmpl.startDate) : '',
+        tmpl.dueDays || 7,
+        tmpl.lastGenerated ? new Date(tmpl.lastGenerated) : '',
+        tmpl.nextDue ? new Date(tmpl.nextDue) : '',
+      ];
+    });
+    sheet.getRange(2, 1, rows.length, 11).setValues(rows);
+  } catch(e) { Logger.log('saveAutoTemplatesData error: ' + e); }
 }
 
-// 毎朝9時に実行: nextDue <= 今日 のテンプレートからタスクを自動生成
+// 毎日9時に実行: nextDue <= 今日 のテンプレートからタスクを自動生成
 function runAutoTemplates() {
   const today = new Date(); today.setHours(0,0,0,0);
   const templates = getAutoTemplates();
-  let changed = false;
+  const ecEvents  = getEcEventsFromSheet();
+  const autoSheet = getSheetByGid(AUTOMATION_SHEET_GID);
+  const taskSheet = getSheetByGid(TASK_SHEET_GID);
 
-  templates.forEach(function(tmpl, i) {
+  templates.forEach(function(tmpl) {
     if (!tmpl.nextDue) return;
     const nextDue = new Date(tmpl.nextDue); nextDue.setHours(0,0,0,0);
     if (nextDue > today) return;
 
     const lastGen = tmpl.lastGenerated ? new Date(tmpl.lastGenerated) : null;
-    if (lastGen) lastGen.setHours(0,0,0,0);
+    if (lastGen) { lastGen.setHours(0,0,0,0); }
     if (lastGen && lastGen >= nextDue) return; // 生成済み
 
-    const cats = Array.isArray(tmpl.categories) ? tmpl.categories
-      : (tmpl.category ? [tmpl.category] : ['']);
-    const sheet = getSheetByGid(TASK_SHEET_GID);
-
+    const cats = Array.isArray(tmpl.categories) ? tmpl.categories : [];
     const dueDate = tmpl.ecEventLabel
       ? subtractBusinessDaysGas(new Date(nextDue), 2)
       : (function(){ var d = new Date(nextDue); d.setDate(d.getDate() + (tmpl.dueDays||7)); return d; })();
@@ -528,8 +637,8 @@ function runAutoTemplates() {
       : new Date(nextDue);
 
     cats.forEach(function(cat) {
-      const nextNo = getLastNo(sheet) + 1;
-      const row = buildRow(nextNo, {
+      const nextNo = getLastNo(taskSheet) + 1;
+      taskSheet.appendRow(buildRow(nextNo, {
         entryDate:     Utilities.formatDate(entryDate, 'Asia/Tokyo', 'yyyy-MM-dd'),
         category:      cat,
         status:        '未着手',
@@ -539,15 +648,43 @@ function runAutoTemplates() {
         assignee:      tmpl.assignee || '',
         workHours:     0,
         completedDate: '',
-      });
-      sheet.appendRow(row);
+      }));
     });
 
-    templates[i].lastGenerated = nextDue.toISOString();
-    changed = true;
-  });
+    // lastGenerated を更新
+    autoSheet.getRange(tmpl._row, AUTO_COL.LAST_GENERATED).setValue(nextDue);
 
-  if (changed) saveAutoTemplatesData(templates);
+    // 次回生成日を計算して更新
+    const newNextDue = tmpl.ecEventLabel
+      ? getNextEcEventDateFromSheet(tmpl.ecEventLabel, nextDue, ecEvents)
+      : computeNextRepeatDate(tmpl.startDate, tmpl.repeat, nextDue);
+    if (newNextDue) autoSheet.getRange(tmpl._row, AUTO_COL.NEXT_DUE).setValue(newNextDue);
+  });
+}
+
+function getNextEcEventDateFromSheet(ecEventLabel, afterDate, ecEvents) {
+  if (!ecEvents || !ecEvents.length) return null;
+  const after = new Date(afterDate); after.setHours(0,0,0,0);
+  const baseLabel = ecEventLabel.replace('×5,0日','');
+  const futures = ecEvents
+    .filter(function(e) { return e.start && (e.label === ecEventLabel || e.label === baseLabel); })
+    .map(function(e) { var d = new Date(e.start); d.setHours(0,0,0,0); return d; })
+    .filter(function(d) { return d > after; })
+    .sort(function(a,b) { return a - b; });
+  return futures[0] || null;
+}
+
+function computeNextRepeatDate(startDate, repeat, afterDate) {
+  const ref = new Date(afterDate); ref.setHours(0,0,0,0);
+  let d = new Date(startDate); d.setHours(0,0,0,0);
+  while (d <= ref) {
+    if (repeat === 'daily')        d.setDate(d.getDate() + 1);
+    else if (repeat === 'weekly')  d.setDate(d.getDate() + 7);
+    else if (repeat === 'biweekly') d.setDate(d.getDate() + 14);
+    else if (repeat === 'monthly') d.setMonth(d.getMonth() + 1);
+    else break;
+  }
+  return d > ref ? d : null;
 }
 
 function subtractBusinessDaysGas(date, days) {
