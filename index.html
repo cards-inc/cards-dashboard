@@ -303,7 +303,7 @@ tbody td { padding: 11px 16px; font-size: 13px; vertical-align: middle; }
 .wbs-timeline-area { flex: 1; overflow-x: auto; overflow-y: auto; position: relative; }
 
 /* Label column header spacer */
-.wbs-label-header { height: 56px; background: var(--surface2); border-bottom: 1px solid var(--border); display: flex; align-items: center; padding: 0 14px; font-size: 11px; font-weight: 700; color: var(--text2); text-transform: uppercase; letter-spacing: .06em; flex-shrink: 0; }
+.wbs-label-header { height: 76px; background: var(--surface2); border-bottom: 1px solid var(--border); display: flex; align-items: center; padding: 0 14px; font-size: 11px; font-weight: 700; color: var(--text2); text-transform: uppercase; letter-spacing: .06em; flex-shrink: 0; }
 .wbs-labels-body { overflow-y: hidden; flex: 1; }
 
 /* Label rows */
@@ -1957,11 +1957,18 @@ function renderWBS(tasks, groupBy = 'category') {
   const monthRowHTML = months.map(m =>
     `<div class="wbs-month-cell" style="width:${m.count * COL_W}px">${m.label}</div>`
   ).join('');
+  const DOW = ['日','月','火','水','木','金','土'];
   const dayRowHTML = days.map((d, i) => {
     const isNonWork = isNonWorkday(d);
     const isToday   = i === todayIdx;
     const cls = isToday ? 'today' : isNonWork ? 'weekend' : '';
     return `<div class="wbs-day-cell ${cls}" style="width:${COL_W}px">${d.getDate()}</div>`;
+  }).join('');
+  const dowRowHTML = days.map((d, i) => {
+    const isNonWork = isNonWorkday(d);
+    const isToday   = i === todayIdx;
+    const cls = isToday ? 'today' : isNonWork ? 'weekend' : '';
+    return `<div class="wbs-day-cell ${cls}" style="width:${COL_W}px;height:20px;font-size:10px">${DOW[d.getDay()]}</div>`;
   }).join('');
 
   // ── タイムライン行 ──
@@ -2059,6 +2066,7 @@ function renderWBS(tasks, groupBy = 'category') {
         <div class="wbs-timeline-header">
           <div class="wbs-month-row">${monthRowHTML}</div>
           <div class="wbs-day-row">${dayRowHTML}</div>
+          <div class="wbs-day-row" style="height:20px">${dowRowHTML}</div>
         </div>
         <div class="wbs-timeline-rows" style="position:relative;height:${totalH}px">
           ${ecRows.timelineHTML}
