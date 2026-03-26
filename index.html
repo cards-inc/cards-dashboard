@@ -1599,9 +1599,9 @@ function renderPersonChart(tasks) {
         label: s,
         data: people.map(p => tasks.filter(t => t.assignee === p && t.status === s).length),
         backgroundColor: STATUS_COLORS[s],
-        borderRadius: 6,
+        borderRadius: Number.MAX_VALUE,
         borderSkipped: false,
-        barPercentage: 0.7,
+        barPercentage: 0.5,
         categoryPercentage: 0.8,
       }))
     },
@@ -1679,9 +1679,9 @@ function renderCategoryChart(tasks) {
         label: s,
         data: cats.map(c => tasks.filter(t => t.category === c && t.status === s).length),
         backgroundColor: STATUS_COLORS[s],
-        borderRadius: 6,
+        borderRadius: Number.MAX_VALUE,
         borderSkipped: false,
-        barPercentage: 0.7,
+        barPercentage: 0.5,
         categoryPercentage: 0.8,
       }))
     },
