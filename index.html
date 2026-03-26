@@ -3641,10 +3641,11 @@ async function syncEcEventsFromSheet() {
       localStorage.setItem('ecEventsVersion', EC_EVENTS_VERSION);
       localStorage.setItem('ecEvents', JSON.stringify(filtered));
     } else {
-      // シートが空またはヘッダーのみ → キャッシュをクリアしてデフォルトに戻す
+      // シートが空またはヘッダーのみ → キャッシュをクリアしてデフォルトをシートに書き込む
       _ecEventsCache = null;
       localStorage.removeItem('ecEvents');
       localStorage.removeItem('ecEventsVersion');
+      saveEcEvents(loadEcEvents());
     }
   } catch(e) { console.warn('EC events sheet sync failed:', e); }
 }
