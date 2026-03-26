@@ -3651,7 +3651,8 @@ function loadEcEvents() {
     const s   = localStorage.getItem('ecEvents');
     if (s && ver === EC_EVENTS_VERSION) { _ecEventsCache = JSON.parse(s); return _ecEventsCache; }
   } catch(_) {}
-  _ecEventsCache = [];
+  // キャッシュなし → デフォルトイベントをフォールバック
+  _ecEventsCache = EC_EVENTS_DEFAULT.slice();
   return _ecEventsCache;
 }
 
@@ -3683,11 +3684,13 @@ async function syncEcEventsFromSheet() {
       localStorage.setItem('ecEventsVersion', EC_EVENTS_VERSION);
       localStorage.setItem('ecEvents', JSON.stringify(filtered));
     } else {
-      // シートが空またはヘッダーのみ → キャッシュをクリア
-      _ecEventsCache = [];
+      // シートが空またはヘッダーのみ → デフォルトにフォールバック
+      _ecEventsCache = EC_EVENTS_DEFAULT.slice();
       localStorage.removeItem('ecEvents');
       localStorage.removeItem('ecEventsVersion');
     }
+    // WBSタブが表示中なら再描画
+    if (document.getElementById('tab-wbs')?.classList.contains('active')) applyWbsFilter();
   } catch(e) { console.warn('EC events sheet sync failed:', e); }
 }
 
