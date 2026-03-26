@@ -941,6 +941,7 @@ tbody td { padding: 11px 16px; font-size: 13px; vertical-align: middle; }
 const SHEET_ID = '1I8p4IVrMTEKHRdfLwwpW6jVty5N2DIlT7riHC0TW-xw';
 const GID = '235656541';
 const SETTING_GID = '939802887';
+const EC_EVENTS_GID = '365675538';
 const AUTOMATION_GID = '1898911664';
 const STATUSES = ['対応完了', '確認中', '対応中', '未着手'];
 const STATUS_COLORS = { '対応完了': '#10b981', '確認中': '#6366f1', '対応中': '#f59e0b', '未着手': '#94a3b8' };
@@ -3712,37 +3713,51 @@ function saveEcEvents(evs) {
   if (GAS_URL) gasJsonp('replaceEcEvents', { events: evs }).catch(e => console.warn('EC events sync:', e));
 }
 
-// 起動時にシートから最新データを取得してキャッシュを更新
+// 起動時にシートから直接CSV読み込みでECイベントを取得（GAS不要）
 async function syncEcEventsFromSheet() {
-  if (!GAS_URL) return;
   try {
-    const res = await gasJsonp('getEcEvents', {});
-    const HEADER_LABELS = ['イベント名', '開始日', '終了日', '楽天市場', 'Amazon'];
-    const filtered = (res.events || []).filter(e =>
-      e.label && !HEADER_LABELS.includes(e.label) && e.start
-    );
-    if (filtered.length) {
-      filtered.forEach(e => {
-        if (!e.color) {
-          const def = EC_AUTO_EVENTS.find(d => d.display === e.label || d.keywords?.some(k => e.label.includes(k)));
-          e.color = def?.color || (e.type === 'rakuten' ? '#bf1515' : '#e07b00');
-        }
-      });
-      _ecEventsCache = filtered;
+    const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&gid=${EC_EVENTS_GID}&nocache=${Date.now()}`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('シート読み込みエラー: ' + res.status);
+    const csv = await res.text();
+    const rows = csv.split('\n').slice(1); // 1行目（セクションヘッダー）をスキップ
+    const events = [];
+    rows.forEach(row => {
+      // CSV解析（ダブルクォート対応）
+      const cells = [];
+      let cur = '', inQ = false;
+      for (let i = 0; i < row.length; i++) {
+        if (row[i] === '"') { inQ = !inQ; }
+        else if (row[i] === ',' && !inQ) { cells.push(cur.trim()); cur = ''; }
+        else { cur += row[i]; }
+      }
+      cells.push(cur.trim());
+      // B=1,C=2,D=3 → 楽天 / F=5,G=6,H=7 → Amazon
+      const rLabel = cells[1], rStart = cells[2], rEnd = cells[3];
+      const aLabel = cells[5], aStart = cells[6], aEnd = cells[7];
+      if (rLabel && rStart && rLabel !== '楽天市場' && rLabel !== 'イベント名') {
+        const def = EC_AUTO_EVENTS.find(d => d.display === rLabel || d.keywords?.some(k => rLabel.includes(k)));
+        events.push({ label: rLabel, start: rStart, end: rEnd || rStart, color: def?.color || '#bf1515', type: 'rakuten' });
+      }
+      if (aLabel && aStart && aLabel !== 'Amazon' && aLabel !== 'イベント名') {
+        const def = EC_AUTO_EVENTS.find(d => d.display === aLabel || d.keywords?.some(k => aLabel.includes(k)));
+        events.push({ label: aLabel, start: aStart, end: aEnd || aStart, color: def?.color || '#e07b00', type: 'amazon' });
+      }
+    });
+    if (events.length) {
+      _ecEventsCache = events;
       localStorage.setItem('ecEventsVersion', EC_EVENTS_VERSION);
-      localStorage.setItem('ecEvents', JSON.stringify(filtered));
+      localStorage.setItem('ecEvents', JSON.stringify(events));
     } else {
-      // シートが空またはヘッダーのみ → デフォルトにフォールバック
       _ecEventsCache = EC_EVENTS_DEFAULT.slice();
       localStorage.removeItem('ecEvents');
       localStorage.removeItem('ecEventsVersion');
     }
-    // WBSタブが表示中なら再描画
     if (document.getElementById('tab-wbs')?.classList.contains('active')) applyWbsFilter();
-    console.log('[EC sync] シートから取得成功:', _ecEventsCache.length, '件');
+    console.log('[EC sync] シートから直接取得成功:', _ecEventsCache.length, '件');
   } catch(e) {
     console.warn('EC events sheet sync failed:', e);
-    showBanner('ECイベント同期エラー: ' + e.message + '（GASの再デプロイが必要かもしれません）', 'error');
+    showBanner('ECイベント同期エラー: ' + e.message, 'error');
   }
 }
 
