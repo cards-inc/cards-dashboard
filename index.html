@@ -803,11 +803,29 @@ tbody td { padding: 11px 16px; font-size: 13px; vertical-align: middle; }
         <label>担当者 <span style="color:var(--danger)">*</span></label>
         <select id="auto_assignee"><option value="">選択してください</option></select>
       </div>
-      <div class="modal-field">
+      <div class="modal-field" id="auto_dueDays_field">
+        <label>期限（生成日から何日後）</label>
+        <input type="number" id="auto_dueDays" value="7" min="0" max="365" placeholder="7">
+      </div>
+      <div class="modal-field full" id="auto_dueDays_ec" style="display:none">
+        <label>タスク期限</label>
+        <div style="padding:8px 10px;background:var(--primary-light);border:1px solid var(--border);border-radius:8px;font-size:12px;color:var(--primary);font-weight:600;line-height:1.8">期限: イベント開始2営業日前<br><span style="color:var(--text2);font-weight:400">記載日: イベント開始5営業日前</span></div>
+      </div>
+      <div class="modal-field full">
+        <label>対象カテゴリ（複数選択可）<span style="color:var(--danger)">*</span></label>
+        <div id="auto_cat_list" style="border:1px solid var(--border);border-radius:8px;max-height:110px;overflow-y:auto;padding:4px 0;background:var(--surface)">
+          <div style="padding:8px 12px;color:var(--text2);font-size:13px">読み込み中...</div>
+        </div>
+        <label style="display:flex;align-items:center;gap:6px;margin-top:5px;font-size:12px;cursor:pointer;color:var(--text2)">
+          <input type="checkbox" id="auto_cat_all" onchange="autoCatToggleAll(this.checked)"> すべて選択
+        </label>
+      </div>
+      <div class="modal-field full">
         <label>ECイベント連動（任意）</label>
         <select id="auto_ecEvent" onchange="applyEcEventLink()">
           <option value="">連動しない</option>
         </select>
+        <div style="font-size:11px;color:var(--text2);margin-top:3px">選択すると次回イベント日を自動入力します</div>
       </div>
       <div class="modal-field" id="auto_repeat_field">
         <label>繰り返し</label>
@@ -823,26 +841,9 @@ tbody td { padding: 11px 16px; font-size: 13px; vertical-align: middle; }
         <label>繰り返し</label>
         <div style="padding:8px 10px;background:var(--primary-light);border:1px solid var(--border);border-radius:8px;font-size:13px;color:var(--primary);font-weight:600">イベントごと</div>
       </div>
-      <div class="modal-field" id="auto_dueDays_field">
-        <label>期限（生成日から何日後）</label>
-        <input type="number" id="auto_dueDays" value="7" min="0" max="365" placeholder="7">
-      </div>
-      <div class="modal-field" id="auto_dueDays_ec" style="display:none">
-        <label>タスク期限</label>
-        <div style="padding:8px 10px;background:var(--primary-light);border:1px solid var(--border);border-radius:8px;font-size:12px;color:var(--primary);font-weight:600;line-height:1.8">開始2営業日前<br><span style="color:var(--text2);font-weight:400;font-size:11px">記載日: 開始5営業日前</span></div>
-      </div>
       <div class="modal-field">
         <label>開始日（初回 / 次回イベント日）</label>
         <input type="date" id="auto_startDate">
-      </div>
-      <div class="modal-field full">
-        <label>対象カテゴリ <span style="color:var(--danger)">*</span></label>
-        <div id="auto_cat_list" style="border:1px solid var(--border);border-radius:8px;max-height:110px;overflow-y:auto;padding:4px 0;background:var(--surface)">
-          <div style="padding:8px 12px;color:var(--text2);font-size:13px">読み込み中...</div>
-        </div>
-        <label style="display:flex;align-items:center;gap:6px;margin-top:5px;font-size:12px;cursor:pointer;color:var(--text2)">
-          <input type="checkbox" id="auto_cat_all" onchange="autoCatToggleAll(this.checked)"> すべて選択
-        </label>
       </div>
     </div>
     <div class="modal-actions">
@@ -1762,7 +1763,13 @@ function applyWbsFilter() {
     }
     return true;
   });
-  renderWBS(tasks, groupBy);
+  try {
+    renderWBS(tasks, groupBy);
+  } catch(e) {
+    console.error('[WBS] renderWBS error:', e);
+    const c = document.getElementById('wbsBody');
+    if (c) c.innerHTML = `<div style="padding:32px;color:var(--danger)">WBS描画エラー: ${esc(e.message)}</div>`;
+  }
 }
 
 // 日本の祝日（2025〜2026年）
@@ -3747,18 +3754,21 @@ function deleteEcEvent(gIdx) {
   applyWbsFilter();
 }
 
-// ECイベントをWBSタイムラインに描画（楽天・Amazon 別行、日付またぎ帯状色付け）
+// ECイベントをWBSタイムラインに描画（絶対配置方式：O(events)で高速）
 function buildEcEventRows(days, COL_W) {
+  if (!days.length) return { labelHTML: '', timelineHTML: '', rowHeight: 0 };
   const minD = days[0], maxD = days[days.length - 1];
+  const totalW = days.length * COL_W;
   const stored   = loadEcEvents();
   const withFive = [...stored, ...ecSpecialDayEvents(minD, maxD)];
-
-  const LANE_H = 26;
+  const LANE_H   = 26;
+  const gridBg   = `repeating-linear-gradient(to right,transparent 0,transparent ${COL_W-1}px,#e2e8f0 ${COL_W-1}px,#e2e8f0 ${COL_W}px)`;
 
   const buildOneRow = (evs, labelText, cssType) => {
     const visible = evs.filter(e => {
+      if (!e.start) return false;
       const s = new Date(e.start), en = new Date(e.end || e.start);
-      return s <= maxD && en >= minD;
+      return !isNaN(s) && !isNaN(en) && s <= maxD && en >= minD;
     });
     if (!visible.length) return { labelHTML: '', timelineHTML: '', rowHeight: 0 };
 
@@ -3777,32 +3787,17 @@ function buildEcEventRows(days, COL_W) {
     const maxLane = Math.max(...placed.map(b => b.lane));
     const rowH    = (maxLane + 1) * LANE_H;
 
-    // レーンごとにセルを帯状で塗る ＋ ラベルは絶対配置で文字切れ防止
-    let lanesHTML = '';
-    for (let lane = 0; lane <= maxLane; lane++) {
-      const laneEvs = placed.filter(b => b.lane === lane);
-      const cells = days.map((d, i) => {
-        const ev = laneEvs.find(b => i >= b.si && i <= b.ei);
-        const nonWork = isNonWorkday(d);
-        if (ev) {
-          const isStart = i === ev.si;
-          const isEnd   = i === ev.ei;
-          const borderL = isStart ? `border-left:3px solid ${ev.color};` : '';
-          const borderR = isEnd   ? `border-right:3px solid ${ev.color};` : '';
-          // ラベルは開始セルに絶対配置（幅をイベント全体分確保して文字切れなし）
-          const labelSpan = isStart
-            ? `<span style="position:absolute;left:5px;top:50%;transform:translateY(-50%);font-size:10px;font-weight:800;color:${ev.color};white-space:nowrap;pointer-events:none;z-index:1;text-shadow:0 0 4px rgba(255,255,255,.9)">${ev.label}</span>`
-            : '';
-          return `<div style="width:${COL_W}px;height:${LANE_H}px;flex-shrink:0;background:${ev.color}28;box-sizing:border-box;${borderL}${borderR}position:${isStart?'relative':'static'};cursor:pointer" onclick="ecEventClick(${JSON.stringify(ev.label)},${JSON.stringify(ev.start)},${JSON.stringify(ev.type)})" title="${ev.label} ${ev.start}〜${ev.end||ev.start}">${labelSpan}</div>`;
-        }
-        return `<div style="width:${COL_W}px;height:${LANE_H}px;flex-shrink:0;border-right:1px solid var(--border);${nonWork?'background:#f5f7fa;':''}"></div>`;
-      }).join('');
-      lanesHTML += `<div style="display:flex;height:${LANE_H}px;overflow:visible;">${cells}</div>`;
-    }
+    // 絶対配置：イベント数分のdivのみ生成（per-cellループなし）
+    const eventsHTML = placed.map(b => {
+      const left  = b.si * COL_W;
+      const width = (b.ei - b.si + 1) * COL_W;
+      const top   = b.lane * LANE_H;
+      return `<div style="position:absolute;left:${left}px;top:${top}px;width:${width}px;height:${LANE_H}px;background:${b.color}28;border-left:3px solid ${b.color};border-right:3px solid ${b.color};box-sizing:border-box;cursor:pointer;overflow:hidden" onclick="ecEventClick(${JSON.stringify(b.label)},${JSON.stringify(b.start)},${JSON.stringify(b.type)})" title="${esc(b.label)} ${b.start}〜${b.end||b.start}"><span style="position:absolute;left:5px;top:50%;transform:translateY(-50%);font-size:10px;font-weight:800;color:${b.color};white-space:nowrap;pointer-events:none;text-shadow:0 0 4px rgba(255,255,255,.9)">${esc(b.label)}</span></div>`;
+    }).join('');
 
     return {
       labelHTML:    `<div class="wbs-row-label ${cssType}" style="height:${rowH}px">${labelText}</div>`,
-      timelineHTML: `<div class="wbs-trow ${cssType}" style="height:${rowH}px;display:block;overflow:visible;">${lanesHTML}</div>`,
+      timelineHTML: `<div class="wbs-trow ${cssType}" style="position:relative;height:${rowH}px;width:${totalW}px;overflow:visible;background-image:${gridBg};background-size:${totalW}px 100%">${eventsHTML}</div>`,
       rowHeight:    rowH,
     };
   };
@@ -3810,9 +3805,8 @@ function buildEcEventRows(days, COL_W) {
   const rakuten = buildOneRow(withFive.filter(e => e.type === 'rakuten'), '楽天市場', 'ec-rakuten');
   const amazon  = buildOneRow(withFive.filter(e => e.type === 'amazon'),  'Amazon',   'ec-amazon');
 
-  // セクションヘッダー行
   const HEAD_H = 30;
-  const ecTotalW = days.length * COL_W;
+  const ecTotalW = totalW;
   const headSpan = `<div style="width:${ecTotalW}px;height:${HEAD_H}px;background:#7c8fa1;display:flex;align-items:center;padding:0 16px;color:#fff;font-size:11px;font-weight:800;letter-spacing:.12em">EC EVENTS</div>`;
   const headLabel    = `<div class="wbs-row-label ec-head" style="height:${HEAD_H}px">EC EVENTS</div>`;
   const headTimeline = `<div class="wbs-trow ec-head" style="height:${HEAD_H}px">${headSpan}</div>`;
