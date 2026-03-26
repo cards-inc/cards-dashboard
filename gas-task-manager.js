@@ -613,8 +613,8 @@ function setupTriggers() {
   // オートメーション: 毎朝9時
   ScriptApp.newTrigger('runAutoTemplates')
     .timeBased().atHour(9).everyDays(1).inTimezone('Asia/Tokyo').create();
-  // 期限切れ通知: 毎朝10時
+  // 期限切れ通知: 毎朝9時
   ScriptApp.newTrigger('notifyOverdueTasks')
-    .timeBased().atHour(10).everyDays(1).inTimezone('Asia/Tokyo').create();
-  Logger.log('トリガー設定完了（オートメーション9時 / 期限切れ通知10時）');
+    .timeBased().atHour(9).everyDays(1).inTimezone('Asia/Tokyo').create();
+  Logger.log('トリガー設定完了（オートメーション9時 / 期限切れ通知9時）');
 }
