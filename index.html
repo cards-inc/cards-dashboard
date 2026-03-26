@@ -442,15 +442,29 @@ tbody td { padding: 11px 16px; font-size: 13px; vertical-align: middle; }
   <div class="status-banner" id="statusBanner"></div>
 
   <!-- タブ -->
-  <nav class="tab-nav">
-    <button class="tab-btn active" onclick="switchTab('dashboard')">タスク</button>
+  <nav class="tab-nav" id="tabNav">
+    <button class="tab-btn" onclick="switchTab('dashboard')">タスク</button>
     <button class="tab-btn" onclick="switchTab('wbs')">WBS</button>
     <button class="tab-btn" onclick="switchTab('jikko')">業務報告</button>
     <button class="tab-btn" onclick="switchTab('admin')">管理者</button>
   </nav>
+  <script>
+  (function(){
+    var t = 'dashboard';
+    try { t = localStorage.getItem('activeTab') || 'dashboard'; } catch(e){}
+    if (!['dashboard','wbs','jikko','admin'].includes(t)) t = 'dashboard';
+    var tabs = ['dashboard','wbs','jikko','admin'];
+    var btns = document.querySelectorAll('#tabNav .tab-btn');
+    btns.forEach(function(b,i){ if(tabs[i]===t) b.classList.add('active'); });
+    document.addEventListener('DOMContentLoaded', function(){
+      var pane = document.getElementById('tab-' + t);
+      if(pane) pane.classList.add('active');
+    });
+  })();
+  </script>
 
   <!-- ===== TAB: ダッシュボード ===== -->
-  <div class="tab-pane active" id="tab-dashboard">
+  <div class="tab-pane" id="tab-dashboard">
 
     <!-- フィルターバー -->
     <div class="section">
@@ -2991,12 +3005,6 @@ async function postToSlack() {
 
 
 loadData();
-
-// 前回開いていたタブを復元
-try {
-  const savedTab = localStorage.getItem('activeTab');
-  if (savedTab && ['dashboard','wbs','jikko','admin'].includes(savedTab)) switchTab(savedTab);
-} catch(_) {}
 
 // ──────────────────────────────
 // 自動リフレッシュ（5分ごと）
