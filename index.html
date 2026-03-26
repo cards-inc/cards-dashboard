@@ -924,6 +924,7 @@ tbody td { padding: 11px 16px; font-size: 13px; vertical-align: middle; }
 const SHEET_ID = '1I8p4IVrMTEKHRdfLwwpW6jVty5N2DIlT7riHC0TW-xw';
 const GID = '235656541';
 const SETTING_GID = '939802887';
+const AUTOMATION_GID = '1898911664';
 const STATUSES = ['対応完了', '確認中', '対応中', '未着手'];
 const STATUS_COLORS = { '対応完了': '#10b981', '確認中': '#6366f1', '対応中': '#f59e0b', '未着手': '#94a3b8' };
 
@@ -1152,6 +1153,58 @@ function parseGviz(table) {
     taskNo++;
   }
   return tasks;
+}
+
+// gviz汎用フェッチ（Promise）
+function fetchGviz(gid) {
+  return new Promise((resolve, reject) => {
+    const cbName = '_gviz_' + Date.now() + '_' + Math.random().toString(36).slice(2);
+    const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json;responseHandler:${cbName}&gid=${gid}&nocache=${Date.now()}`;
+    const timer = setTimeout(() => {
+      delete window[cbName];
+      const s = document.getElementById(cbName); if (s) s.remove();
+      reject(new Error('gviz timeout'));
+    }, 10000);
+    window[cbName] = function(json) {
+      clearTimeout(timer);
+      delete window[cbName];
+      const s = document.getElementById(cbName); if (s) s.remove();
+      if (json.status !== 'ok') return reject(new Error(json.errors?.[0]?.message || 'gviz error'));
+      resolve(json.table);
+    };
+    const s = document.createElement('script');
+    s.id = cbName; s.src = url;
+    s.onerror = () => { clearTimeout(timer); delete window[cbName]; reject(new Error('gviz load error')); };
+    document.head.appendChild(s);
+  });
+}
+
+// Automationシート → テンプレート配列に変換
+// 列: A(0)空, B(1)カテゴリ, C(2)担当者, D(3)ECイベント, E(4)タスク内容,
+//     F(5)詳細, G(6)繰り返し, H(7)開始日, I(8)期限日数, J(9)最終生成日, K(10)次回生成日
+function parseAutoGviz(table) {
+  const templates = [];
+  for (let r = 0; r < table.rows.length; r++) {
+    const cells = table.rows[r].c || [];
+    const get = i => cells[i] && cells[i].v != null ? cells[i].v : '';
+    const taskName = String(get(4)).trim();
+    if (!taskName) continue;
+    const catsRaw = String(get(1)).trim();
+    templates.push({
+      _row:          r + 2,
+      categories:    catsRaw ? catsRaw.split(',').map(s => s.trim()).filter(Boolean) : [],
+      assignee:      String(get(2)).trim(),
+      ecEventLabel:  get(3) ? String(get(3)).trim() : null,
+      taskName,
+      detail:        String(get(5)).trim(),
+      repeat:        String(get(6) || 'weekly').trim(),
+      startDate:     parseDate(get(7)) ? parseDate(get(7)).toISOString() : null,
+      dueDays:       parseInt(get(8)) || 7,
+      lastGenerated: parseDate(get(9)) ? parseDate(get(9)).toISOString() : null,
+      nextDue:       parseDate(get(10)) ? parseDate(get(10)).toISOString() : null,
+    });
+  }
+  return templates;
 }
 
 function parseDate(v) {
@@ -2970,26 +3023,14 @@ function updateAutoCatAll() {
 
 async function loadAutoTemplates() {
   if (_autoCache) return _autoCache;
-  // localStorageを先に読む（オフライン時・GAS失敗時のベース）
-  let local = [];
-  try { local = JSON.parse(localStorage.getItem(AUTO_KEY) || '[]'); } catch {}
-  if (GAS_URL) {
-    try {
-      const res = await gasJsonp('getAutoTemplates', {});
-      const gasTemplates = res.templates || [];
-      // GASにデータがあればGASを正とする。なければlocalStorageをGASにプッシュ
-      if (gasTemplates.length > 0) {
-        _autoCache = gasTemplates;
-      } else if (local.length > 0) {
-        await gasJsonp('saveAutoTemplates', { templates: local });
-        _autoCache = local;
-      } else {
-        _autoCache = [];
-      }
-      return _autoCache;
-    } catch(e) { console.warn('AutoTemplates取得失敗、ローカルフォールバック', e); }
-  }
-  _autoCache = local;
+  // gvizでシートから直接読む（タスクと同じパターン）
+  try {
+    const table = await fetchGviz(AUTOMATION_GID);
+    _autoCache = parseAutoGviz(table);
+    return _autoCache;
+  } catch(e) { console.warn('AutoTemplates gviz取得失敗、ローカルフォールバック', e); }
+  // オフライン時はlocalStorageにフォールバック
+  try { _autoCache = JSON.parse(localStorage.getItem(AUTO_KEY) || '[]'); } catch { _autoCache = []; }
   return _autoCache;
 }
 
@@ -3008,6 +3049,7 @@ async function saveAutoTemplates(list) {
   if (GAS_URL) {
     try { await gasJsonp('saveAutoTemplates', { templates: list }); } catch(e) { console.warn('AutoTemplates GAS保存失敗', e); }
   }
+  _autoCache = null; // 次回loadAutoTemplatesでgvizから再取得
 }
 
 function nextDateAfter(startDate, repeat, refDate, ecLabel) {
