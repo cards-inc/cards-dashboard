@@ -1044,52 +1044,34 @@ function loadData(silent) {
     } catch(_) {}
   }
 
-  const cbName = '_cb_' + Date.now();
-  const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json;responseHandler:${cbName}&gid=${GID}&nocache=${Date.now()}`;
-
-  const timer = setTimeout(() => {
-    cleanup();
-    showBanner('データ取得がタイムアウトしました。シートを「リンクを知っている全員が閲覧可能」に設定してください。', 'error');
-    allTasks = demo();
-    init();
-  }, 10000);
-
-  function cleanup() {
-    delete window[cbName];
-    const s = document.getElementById('_gs');
-    if (s) s.remove();
-    clearTimeout(timer);
-    btn.classList.remove('loading');
-    // icon reset
-  }
-
-  window[cbName] = function(json) {
-    cleanup();
-    try {
-      if (json.status !== 'ok') throw new Error(json.errors?.[0]?.message || 'エラー');
-      const rawRows = json.table.rows.length;
-      allTasks = parseGviz(json.table);
+  // GAS経由でタスク一覧を取得（スプレッドシートが組織限定でも動作）
+  if (GAS_URL) {
+    gasJsonp('getTasks', {}).then(res => {
+      btn.classList.remove('loading');
+      const toDate = s => s ? new Date(s + 'T00:00:00') : null;
+      allTasks = (res.tasks || []).map(t => ({
+        ...t,
+        entryDate:     toDate(t.entryDate),
+        dueDate:       toDate(t.dueDate),
+        completedDate: toDate(t.completedDate),
+      }));
       try {
         localStorage.setItem('tasksCache', JSON.stringify(allTasks));
         localStorage.setItem('tasksCacheAt', Date.now().toString());
       } catch(_) {}
       document.getElementById('lastUpdated').textContent =
         `最終更新: ${new Date().toLocaleTimeString('ja-JP')}  (${allTasks.length}件)`;
-      console.log('[Dashboard] raw rows:', rawRows, 'parsed tasks:', allTasks.length);
-      console.table(allTasks);
       init();
-    } catch(e) {
-      showBanner('データ解析エラー: ' + e.message, 'error');
-      console.error('[Dashboard] parse error', e);
+    }).catch(e => {
+      btn.classList.remove('loading');
+      showBanner('データ取得エラー: ' + e.message, 'error');
       allTasks = demo(); init();
-    }
-  };
-
-  const script = document.createElement('script');
-  script.id = '_gs';
-  script.onerror = () => { cleanup(); showBanner('データ取得失敗。シートの共有設定を確認してください。', 'error'); allTasks = demo(); init(); };
-  script.src = url;
-  document.head.appendChild(script);
+    });
+  } else {
+    btn.classList.remove('loading');
+    showBanner('GAS_URLが未設定です', 'error');
+    allTasks = demo(); init();
+  }
 
   // Settingシートも並行取得（GID設定済みの場合）
   if (SETTING_GID) loadSettings();
@@ -3766,63 +3748,34 @@ function saveEcEvents(evs) {
   if (GAS_URL) gasJsonp('replaceEcEvents', { events: evs }).catch(e => console.warn('EC events sync:', e));
 }
 
-// 起動時にシートからJSONP経由でECイベントを取得（file://でも動作）
+// 起動時にGAS経由でECイベントを取得（スプレッドシート組織限定でも動作）
 function syncEcEventsFromSheet() {
-  const cbName = '_ecCb_' + Date.now();
-  const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json;responseHandler:${cbName}&gid=${EC_EVENTS_GID}&nocache=${Date.now()}`;
-
-  const timer = setTimeout(() => {
-    delete window[cbName];
-    document.getElementById('_ecScript')?.remove();
-    console.warn('EC events sheet sync timeout');
-  }, 10000);
-
-  window[cbName] = function(json) {
-    clearTimeout(timer);
-    delete window[cbName];
-    document.getElementById('_ecScript')?.remove();
-    try {
-      if (json.status !== 'ok') throw new Error(json.errors?.[0]?.message || 'gvizエラー');
-      const rows = json.table.rows || [];
-      const events = [];
-      const get = (row, i) => row.c?.[i]?.v ?? '';
-      const fmtD = v => { if (!v) return ''; if (typeof v === 'string' && v.match(/Date\(/)) { const m = v.match(/Date\((\d+),(\d+),(\d+)\)/); if (m) return `${m[1]}-${String(+m[2]+1).padStart(2,'0')}-${m[3].padStart(2,'0')}`; } return String(v); };
-
-      // Row0=セクションヘッダー, Row1+=データ（B=1楽天,C=2開始,D=3終了 / F=5Amazon,G=6開始,H=7終了）
-      for (let i = 1; i < rows.length; i++) {
-        const r = rows[i];
-        const rLabel = String(get(r,1)||'').trim(), rStart = fmtD(get(r,2)), rEnd = fmtD(get(r,3));
-        const aLabel = String(get(r,5)||'').trim(), aStart = fmtD(get(r,6)), aEnd = fmtD(get(r,7));
-        if (rLabel && rStart && rLabel !== 'イベント名') {
-          const def = EC_AUTO_EVENTS.find(d => d.display === rLabel || d.keywords?.some(k => rLabel.includes(k)));
-          events.push({ label: rLabel, start: rStart, end: rEnd || rStart, color: def?.color || '#bf1515', type: 'rakuten' });
+  if (!GAS_URL) return;
+  gasJsonp('getEcEvents', {}).then(res => {
+    const HEADER_LABELS = ['イベント名', '開始日', '終了日', '楽天市場', 'Amazon'];
+    const filtered = (res.events || []).filter(e =>
+      e.label && !HEADER_LABELS.includes(e.label) && e.start
+    );
+    if (filtered.length) {
+      filtered.forEach(e => {
+        if (!e.color) {
+          const def = EC_AUTO_EVENTS.find(d => d.display === e.label || d.keywords?.some(k => e.label.includes(k)));
+          e.color = def?.color || (e.type === 'rakuten' ? '#bf1515' : '#e07b00');
         }
-        if (aLabel && aStart && aLabel !== 'イベント名') {
-          const def = EC_AUTO_EVENTS.find(d => d.display === aLabel || d.keywords?.some(k => aLabel.includes(k)));
-          events.push({ label: aLabel, start: aStart, end: aEnd || aStart, color: def?.color || '#e07b00', type: 'amazon' });
-        }
-      }
-      if (events.length) {
-        _ecEventsCache = events;
-        localStorage.setItem('ecEventsVersion', EC_EVENTS_VERSION);
-        localStorage.setItem('ecEvents', JSON.stringify(events));
-      } else {
-        _ecEventsCache = EC_EVENTS_DEFAULT.slice();
-        localStorage.removeItem('ecEvents');
-        localStorage.removeItem('ecEventsVersion');
-      }
-      if (document.getElementById('tab-wbs')?.classList.contains('active')) applyWbsFilter();
-      console.log('[EC sync] シートから取得成功:', _ecEventsCache.length, '件');
-    } catch(e) {
-      console.warn('EC events parse error:', e);
+      });
+      _ecEventsCache = filtered;
+      localStorage.setItem('ecEventsVersion', EC_EVENTS_VERSION);
+      localStorage.setItem('ecEvents', JSON.stringify(filtered));
+    } else {
+      _ecEventsCache = EC_EVENTS_DEFAULT.slice();
+      localStorage.removeItem('ecEvents');
+      localStorage.removeItem('ecEventsVersion');
     }
-  };
-
-  const script = document.createElement('script');
-  script.id = '_ecScript';
-  script.src = url;
-  script.onerror = () => { clearTimeout(timer); delete window[cbName]; console.warn('EC events script load failed'); };
-  document.head.appendChild(script);
+    if (document.getElementById('tab-wbs')?.classList.contains('active')) applyWbsFilter();
+    console.log('[EC sync] GAS経由で取得成功:', _ecEventsCache.length, '件');
+  }).catch(e => {
+    console.warn('EC events sync failed:', e);
+  });
 }
 
 function updateEcEventLabel(gIdx, value) {

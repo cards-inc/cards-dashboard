@@ -87,6 +87,8 @@ function doGet(e) {
       result = { status: 'ok' };
     } else if (action === 'getSettingEvents') {
       result = { status: 'ok', events: getSettingEvents() };
+    } else if (action === 'getTasks') {
+      result = { status: 'ok', tasks: getAllTasks() };
     } else if (action === 'getEcEvents') {
       result = { status: 'ok', events: getEcEventsFromSheet() };
     } else if (action === 'replaceEcEvents') {
@@ -199,6 +201,34 @@ function buildRow(no, data) {
     parseDate(data.completedDate), // J: 完了日
     data.assignee    || '',        // K: 担当者
   ];
+}
+
+// ──────────────────────────────
+// タスク一覧取得（ダッシュボード用）
+// ──────────────────────────────
+function getAllTasks() {
+  var sheet = getSheetByGid(TASK_SHEET_GID);
+  var lastRow = sheet.getLastRow();
+  if (lastRow < 4) return [];
+  var data = sheet.getRange(4, 1, lastRow - 3, 11).getValues();
+  var fmtD = function(v) {
+    if (!v) return null;
+    try { return Utilities.formatDate(new Date(v), 'Asia/Tokyo', 'yyyy-MM-dd'); } catch(_) { return null; }
+  };
+  return data.filter(function(row) { return row[COL.NO - 1]; }).map(function(row) {
+    return {
+      no:            Number(row[COL.NO - 1]),
+      entryDate:     fmtD(row[COL.ENTRY_DATE - 1]),
+      category:      String(row[COL.CATEGORY - 1] || ''),
+      status:        String(row[COL.STATUS - 1] || ''),
+      taskName:      String(row[COL.TASK_NAME - 1] || ''),
+      detail:        String(row[COL.DETAIL - 1] || ''),
+      dueDate:       fmtD(row[COL.DUE_DATE - 1]),
+      workHours:     parseFloat(row[COL.WORK_HOURS - 1]) || 0,
+      completedDate: fmtD(row[COL.COMPLETED - 1]),
+      assignee:      String(row[COL.ASSIGNEE - 1] || ''),
+    };
+  });
 }
 
 function parseDate(val) {
