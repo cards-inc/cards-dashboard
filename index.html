@@ -3630,9 +3630,10 @@ const EC_EVENTS_DEFAULT = [
 function ecSpecialDayEvents(minD, maxD) {
   const evs = [];
   const d = new Date(minD);
+  const fmtLocal = dt => `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`;
   while (d <= maxD) {
     const day = d.getDate();
-    const ds  = d.toISOString().slice(0,10);
+    const ds  = fmtLocal(d);
     if (day === 1)             evs.push({ label: 'ワンダフルデー', start: ds, end: ds, color: '#c2185b', type: 'rakuten', _auto: true });
     if (day === 5 || day === 15 || day === 25) evs.push({ label: '5のつく日',   start: ds, end: ds, color: '#d97706', type: 'rakuten', _auto: true });
     if (day === 18)            evs.push({ label: 'ご愛顧感謝',     start: ds, end: ds, color: '#7b1fa2', type: 'rakuten', _auto: true });
@@ -3814,16 +3815,17 @@ function buildEcEventRows(days, COL_W) {
   const gridBg   = `repeating-linear-gradient(to right,transparent 0,transparent ${COL_W-1}px,#e2e8f0 ${COL_W-1}px,#e2e8f0 ${COL_W}px)`;
 
   const buildOneRow = (evs, labelText, cssType) => {
+    const toLocal = str => { const d = new Date(str + 'T00:00:00'); return d; }; // ローカル日付として解釈
     const visible = evs.filter(e => {
       if (!e.start) return false;
-      const s = new Date(e.start), en = new Date(e.end || e.start);
+      const s = toLocal(e.start), en = toLocal(e.end || e.start);
       return !isNaN(s) && !isNaN(en) && s <= maxD && en >= minD;
     });
     if (!visible.length) return { labelHTML: '', timelineHTML: '', rowHeight: 0 };
 
     // 単一レーン（1行表示・重複イベントは重ねて描画）
     const placed = visible.map(e => {
-      const s = new Date(e.start), en = new Date(e.end || e.start);
+      const s = toLocal(e.start), en = toLocal(e.end || e.start);
       let si = days.findIndex(d => d >= s); if (si < 0) si = 0;
       let ei = days.findIndex(d => d >= en); if (ei < 0) ei = days.length - 1;
       return { ...e, si, ei, lane: 0 };
