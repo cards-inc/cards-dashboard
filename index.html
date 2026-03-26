@@ -152,7 +152,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Hiragino Sans', 'Yu Goth
 .kpi-card.k-avghr  .kpi-value { color: #8b5cf6; }
 
 /* Chart cards */
-.charts-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+.charts-row { display: grid; grid-template-columns: 1fr 1.4fr 1.4fr; gap: 16px; }
 @media (max-width: 1200px) { .charts-row { grid-template-columns: 1fr 1fr; } .charts-row > .progress-card { grid-column: 1 / -1; } }
 @media (max-width: 700px)  { .charts-row { grid-template-columns: 1fr; } }
 
@@ -1382,11 +1382,15 @@ function applyFilters() {
     return true;
   });
 
-  renderKPI(baseTasks);        // KPIはチェックボックス・検索に連動、KPIカード選択では変わらない
-  renderPersonChart(tasks);
-  renderProgress(tasks);
-  renderCategoryChart(tasks);
-  renderTable(tasks);
+  // タスクタブが表示中のときだけ重い描画を実行
+  const taskTabVisible = document.getElementById('tab-dashboard')?.classList.contains('active');
+  renderKPI(baseTasks);
+  if (taskTabVisible) {
+    renderPersonChart(tasks);
+    renderProgress(tasks);
+    renderCategoryChart(tasks);
+    renderTable(tasks);
+  }
 }
 
 function kpiClick(filter) {
@@ -1799,6 +1803,7 @@ function switchTab(name) {
   });
   document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
   document.getElementById('tab-' + name).classList.add('active');
+  if (name === 'dashboard') applyFilters();
   if (name === 'wbs')   { initWbsFilters(); if (document.getElementById('ecEventPanel')?.style.display !== 'none') renderEcEventPanel(); }
   if (name === 'jikko') renderJikkoTab();
   if (name === 'admin') initAdminTab();
@@ -1889,7 +1894,10 @@ function renderWBS(tasks, groupBy = 'category') {
   const days = [];
   for (let d = new Date(minD); d <= maxD; d.setDate(d.getDate() + 1)) days.push(new Date(d));
 
-  const todayIdx = days.findIndex(d => d.getTime() === today.getTime());
+  // 日付→インデックスのMap（findIndex O(n)→O(1)）
+  const dayIndexMap = new Map();
+  days.forEach((d, i) => dayIndexMap.set(d.getTime(), i));
+  const todayIdx = dayIndexMap.get(today.getTime()) ?? -1;
   const totalW   = days.length * COL_W;
 
   // 月グループ
@@ -1902,9 +1910,16 @@ function renderWBS(tasks, groupBy = 'category') {
       months[months.length-1].count++;
   });
 
-  // グループキー
+  // グループキー＋事前グルーピング（filter繰り返しを排除）
   const groupKey = groupBy === 'assignee' ? 'assignee' : 'category';
-  const groups = [...new Set(validTasks.map(t => t[groupKey]).filter(Boolean))].sort();
+  const groupedTasks = new Map();
+  validTasks.forEach(t => {
+    const k = t[groupKey] || '';
+    if (!k) return;
+    if (!groupedTasks.has(k)) groupedTasks.set(k, []);
+    groupedTasks.get(k).push(t);
+  });
+  const groups = [...groupedTasks.keys()].sort();
   const labelTitle = groupBy === 'assignee' ? 'タスク / カテゴリ' : 'タスク / 担当者';
   const subLabel   = groupBy === 'assignee'
     ? t => `<span class="assignee">${esc(t.category)}</span>`
@@ -1919,7 +1934,7 @@ function renderWBS(tasks, groupBy = 'category') {
   let labelsBodyHTML = `<div class="wbs-row-label ec-head" style="height:${SECTION_HEAD_H}px">TASKS</div>`;
   groups.forEach(g => {
     labelsBodyHTML += `<div class="wbs-row-label cat">${groupLabel(g)}</div>`;
-    validTasks.filter(t => t[groupKey] === g).forEach(t => {
+    groupedTasks.get(g).forEach(t => {
       labelsBodyHTML += `<div class="wbs-row-label" title="${esc(t.taskName)}">${esc(t.taskName)}${subLabel(t)}</div>`;
     });
   });
@@ -1938,7 +1953,7 @@ function renderWBS(tasks, groupBy = 'category') {
   // ── タイムライン行 ──
   let timelineRowsHTML = '';
   let totalRows = 0;
-  groups.forEach(g => { totalRows += 1 + validTasks.filter(t => t[groupKey] === g).length; });
+  groups.forEach(g => { totalRows += 1 + groupedTasks.get(g).length; });
 
   const barDefs = [];
   let currentTopPx = SECTION_HEAD_H;
@@ -1965,16 +1980,16 @@ function renderWBS(tasks, groupBy = 'category') {
     timelineRowsHTML += `<div class="wbs-trow cat" style="height:${CAT_H}px"></div>`;
     currentTopPx += CAT_H;
 
-    validTasks.filter(t => t[groupKey] === g).forEach(t => {
+    groupedTasks.get(g).forEach(t => {
       timelineRowsHTML += `<div class="wbs-trow wbs-row-bg" style="height:${ROW_H}px"></div>`;
 
-      // バー定義
+      // バー定義（dayIndexMapで O(1) 検索）
       const start = t.entryDate || t.dueDate;
       const end   = t.dueDate   || t.entryDate;
-      let si = days.findIndex(d => d.getTime() >= start.getTime());
-      let ei = days.findIndex(d => d.getTime() >= end.getTime());
-      if (si < 0) si = 0;
-      if (ei < 0) ei = days.length - 1;
+      let si = dayIndexMap.get(start.getTime()) ?? -1;
+      let ei = dayIndexMap.get(end.getTime()) ?? -1;
+      if (si < 0) { for (let i = 0; i < days.length; i++) { if (days[i] >= start) { si = i; break; } } if (si < 0) si = 0; }
+      if (ei < 0) { for (let i = 0; i < days.length; i++) { if (days[i] >= end) { ei = i; break; } } if (ei < 0) ei = days.length - 1; }
 
       const isOverdue = t.dueDate && t.dueDate < today && t.status !== '対応完了';
       const isDone    = t.status === '対応完了';
