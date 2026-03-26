@@ -186,7 +186,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Hiragino Sans', 'Yu Goth
 .search-input { border: 1px solid var(--border); border-radius: 8px; padding: 7px 12px; font-size: 13px; width: 200px; outline: none; flex-shrink: 0; }
 .search-input:focus { border-color: var(--primary); }
 @media (max-width: 480px) { .search-input { width: 100%; } }
-.table-wrap { overflow-x: auto; overflow-y: auto; max-height: 480px; }
+.table-wrap { overflow-x: auto; overflow-y: auto; max-height: 480px; -webkit-overflow-scrolling: touch; }
 table { width: 100%; border-collapse: collapse; }
 thead th { position: sticky; top: 0; z-index: 2; background: var(--surface2); font-size: 12px; font-weight: 600; color: var(--text2); text-transform: uppercase; letter-spacing: 0.05em; padding: 10px 16px; text-align: left; white-space: nowrap; border-bottom: 1px solid var(--border); cursor: pointer; user-select: none; }
 thead th:hover { background: var(--border); }
@@ -261,7 +261,44 @@ tbody td { padding: 11px 16px; font-size: 13px; vertical-align: middle; }
 .tab-btn { flex: 1; padding: 13px 16px; font-size: 14px; font-weight: 600; border: none; background: none; cursor: pointer; color: var(--text2); border-bottom: 3px solid transparent; transition: color .15s, border-color .15s, background .15s; }
 .tab-btn:hover { background: var(--surface2); color: var(--text); }
 .tab-btn.active { color: var(--primary); border-bottom-color: var(--primary); background: var(--primary-light); }
-@media (max-width: 480px) { .tab-btn { font-size: 13px; padding: 11px 10px; } }
+@media (max-width: 480px) { .tab-btn { font-size: 12px; padding: 10px 6px; } }
+
+/* ── スマホ最適化 ── */
+@media (max-width: 480px) {
+  .header { padding: 0 12px; height: 48px; }
+  .header-icon { width: 28px; height: 28px; font-size: 13px; }
+  .header-left { gap: 6px; }
+  .header-right { gap: 4px; }
+  .refresh-btn { padding: 6px 10px; font-size: 12px; }
+  .filter-bar { padding: 10px 12px; gap: 8px; }
+  .filter-bar label { font-size: 12px; }
+  .filter-select { font-size: 12px; padding: 6px 8px; min-width: 0; flex: 1 1 100%; }
+  .cb-filter-btn { font-size: 12px; padding: 6px 8px; }
+  .clear-btn { font-size: 12px; padding: 6px 10px; }
+  .kpi-grid { grid-template-columns: repeat(2, 1fr) !important; gap: 8px; }
+  .kpi-card { padding: 14px; }
+  .kpi-label { font-size: 10px; }
+  .kpi-value { font-size: 26px; }
+  .charts-row { gap: 10px; }
+  .chart-card { padding: 14px; }
+  .chart-card h3 { font-size: 13px; margin-bottom: 10px; padding-bottom: 8px; }
+  .table-header { padding: 10px 12px; }
+  .table-header h2 { font-size: 13px; }
+  thead th { padding: 8px 10px; font-size: 11px; }
+  tbody td { padding: 8px 10px; font-size: 12px; }
+  .table-footer { padding: 8px 12px; }
+  .badge { padding: 3px 8px; font-size: 10px; }
+  .tab-nav { margin-bottom: 12px; }
+  .modal-content { border-radius: 12px; }
+  .bulk-bar { padding: 10px 14px; font-size: 12px; gap: 8px; bottom: 12px; }
+  .wbs-labels-col { width: 160px; }
+  .no-data { padding: 40px 16px; }
+}
+@media (max-width: 380px) {
+  .kpi-grid { grid-template-columns: 1fr 1fr !important; }
+  .tab-btn { font-size: 11px; padding: 9px 4px; }
+  .header h1 { font-size: 13px; }
+}
 .sub-tab-btn { padding: 8px 18px; font-size: 13px; font-weight: 600; border: none; background: none; cursor: pointer; color: var(--text2); border-bottom: 2px solid transparent; transition: color .15s, border-color .15s; font-family: inherit; }
 .sub-tab-btn:hover { color: var(--text); }
 .sub-tab-btn.active { color: var(--primary); border-bottom-color: var(--primary); }
@@ -362,8 +399,8 @@ tbody td { padding: 11px 16px; font-size: 13px; vertical-align: middle; }
 </header>
 
 <!-- ===== MANUAL MODAL ===== -->
-<div id="manualModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;align-items:center;justify-content:center;padding:16px" onclick="if(event.target===this)this.style.display='none'">
-  <div style="background:var(--surface);border-radius:16px;max-width:760px;width:100%;max-height:88vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.3)">
+<div id="manualModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;align-items:center;justify-content:center;padding:8px" onclick="if(event.target===this)this.style.display='none'">
+  <div style="background:var(--surface);border-radius:16px;max-width:760px;width:100%;max-height:92vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.3)">
     <div style="padding:20px 24px 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
       <h2 style="margin:0;font-size:18px">CARDSダッシュボード 使い方ガイド</h2>
       <button onclick="document.getElementById('manualModal').style.display='none'" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--text2);line-height:1">✕</button>
