@@ -552,13 +552,13 @@ tbody td { padding: 11px 16px; font-size: 13px; vertical-align: middle; }
         <table class="task-table">
           <thead>
             <tr>
-              <th>タスク内容</th>
-              <th>カテゴリ</th>
-              <th>担当者</th>
-              <th>繰り返し</th>
-              <th>次回生成日</th>
-              <th>最終生成</th>
-              <th style="width:100px"></th>
+              <th style="width:28%">タスク内容</th>
+              <th style="width:20%">カテゴリ</th>
+              <th style="width:9%">担当者</th>
+              <th style="width:12%">繰り返し</th>
+              <th style="width:11%">次回生成日</th>
+              <th style="width:9%">最終生成</th>
+              <th style="width:11%;text-align:center">操作</th>
             </tr>
           </thead>
           <tbody id="autoTableBody">
@@ -3829,20 +3829,25 @@ async function renderAutoTab() {
   const today = new Date(); today.setHours(0,0,0,0);
   tbody.innerHTML = templates.map((tmpl, i) => {
     const cats = Array.isArray(tmpl.categories) ? tmpl.categories : (tmpl.category ? [tmpl.category] : ['']);
-    const catLabel = cats.join('、');
+    const catBadges = cats.map(c => `<span style="display:inline-block;padding:2px 7px;margin:1px 2px 1px 0;border-radius:10px;background:var(--primary-light,#ede9fe);color:var(--primary);font-size:11px;white-space:nowrap">${esc(c)}</span>`).join('');
     const next = nextDateAfter(tmpl.startDate, tmpl.repeat, new Date(today.getTime() - 86400000), tmpl.ecEventLabel);
     const nextStr = fmtDate(next);
     const isDue = next <= today;
+    const nextBadge = isDue
+      ? `<span style="display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:10px;background:#fee2e2;color:var(--danger);font-size:12px;font-weight:700">⚡ ${nextStr}</span>`
+      : `<span style="font-size:13px;color:var(--text)">${nextStr}</span>`;
     return `<tr>
-      <td>${esc(tmpl.taskName)}</td>
-      <td style="font-size:12px">${esc(catLabel)}</td>
-      <td>${esc(tmpl.assignee||'')}</td>
-      <td>${tmpl.ecEventLabel ? `イベントごと<br><span style="font-size:10px;color:var(--text2)">${esc(tmpl.ecEventLabel)}</span>` : repeatLabel(tmpl.repeat)}</td>
-      <td style="color:${isDue?'var(--danger)':'var(--text)'};font-weight:${isDue?700:400}">${nextStr}${isDue?' ⚡':''}</td>
+      <td style="font-weight:500">${esc(tmpl.taskName)}</td>
+      <td>${catBadges}</td>
+      <td style="font-size:13px">${esc(tmpl.assignee||'')}</td>
+      <td style="font-size:12px;color:var(--text2)">${tmpl.ecEventLabel ? `<span style="color:var(--primary);font-weight:600">イベントごと</span><br><span style="font-size:10px">${esc(tmpl.ecEventLabel)}</span>` : repeatLabel(tmpl.repeat)}</td>
+      <td>${nextBadge}</td>
       <td style="color:var(--text2);font-size:12px">${tmpl.lastGenerated ? fmtDate(new Date(tmpl.lastGenerated)) : '—'}</td>
-      <td style="display:flex;gap:6px;justify-content:center">
-        <button class="clear-btn" style="font-size:11px;padding:3px 8px" onclick="runAutoTemplate(${i})">今すぐ生成</button>
-        <button class="clear-btn" style="font-size:11px;padding:3px 8px" onclick="editAutoTemplate(${i})">編集</button>
+      <td style="text-align:center">
+        <div style="display:flex;flex-direction:column;gap:5px;align-items:center">
+          <button class="add-btn" style="font-size:11px;padding:4px 10px;white-space:nowrap;width:80px" onclick="runAutoTemplate(${i})">▶ 今すぐ生成</button>
+          <button class="clear-btn" style="font-size:11px;padding:4px 10px;white-space:nowrap;width:80px" onclick="editAutoTemplate(${i})">編集</button>
+        </div>
       </td>
     </tr>`;
   }).join('');
@@ -3854,7 +3859,7 @@ async function runAutoTemplate(i) {
   const tmpl = templates[i];
   if (!tmpl) return;
   const today = new Date(); today.setHours(0,0,0,0);
-  const next = nextDateAfter(tmpl.startDate, tmpl.repeat, new Date(today.getTime() - 86400000));
+  const next = nextDateAfter(tmpl.startDate, tmpl.repeat, new Date(today.getTime() - 86400000), tmpl.ecEventLabel);
   await autoGenerateTask(i, next <= today ? next : today, true);
 }
 
@@ -4117,8 +4122,9 @@ function openAutoModal() {
   document.getElementById('autoModal').classList.add('open');
 }
 
-function editAutoTemplate(i) {
-  const tmpl = loadAutoTemplates()[i];
+async function editAutoTemplate(i) {
+  const templates = await loadAutoTemplates();
+  const tmpl = templates[i];
   if (!tmpl) return;
   openAutoModal();
   document.getElementById('autoModalTitle').textContent = 'テンプレートを編集';
