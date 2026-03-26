@@ -520,12 +520,101 @@ function findReportThread(token, dateStr) {
   return null;
 }
 
+// ──────────────────────────────
+// 期限切れタスク通知（Slack #check_alert）
+// ──────────────────────────────
+var ALERT_CHANNEL_ID = 'C09UU758NS3';
+
+// 担当者名 → SlackユーザーID マッピング
+var ASSIGNEE_SLACK_MAP = {
+  '佐藤敦子': 'U09TA7UDED7',
+  '松下絵里': 'U09SV9QHWCE',
+  '樽井翔平': 'U0AC5TSTMFH',
+  '木口亜理沙': 'U09PYRF9WBW',
+  '小池通子': 'U0A713KLGKV',
+  '中瀬英輔': 'U0ABSAF8KJ7',
+  '堀田希': 'U0AH88CEWAE',
+  '鈴木詩乃': 'U0AHPA8KPE3',
+  '秋葉唯': 'U0711EST0NA',
+  '増田真喜': 'U0A5EE1NA3D',
+  '佐渡明日香': 'U0934M42QCX',
+  '上原起': 'U08BB4MH8P3',
+};
+
+function notifyOverdueTasks() {
+  var token = PropertiesService.getScriptProperties().getProperty('SLACK_BOT_TOKEN');
+  if (!token) { Logger.log('SLACK_BOT_TOKEN が未設定'); return; }
+
+  var sheet = getSheetByGid(TASK_SHEET_GID);
+  var lastRow = sheet.getLastRow();
+  if (lastRow < 4) return;
+
+  var data = sheet.getRange(4, 1, lastRow - 3, 11).getValues();
+  var today = new Date(); today.setHours(0, 0, 0, 0);
+
+  // 担当者ごとに期限切れタスクをグループ化
+  var overdueByPerson = {};
+  data.forEach(function(row) {
+    var status  = String(row[COL.STATUS - 1] || '');
+    var dueDate = row[COL.DUE_DATE - 1];
+    if (status === '対応完了' || !dueDate) return;
+    var due = new Date(dueDate); due.setHours(0, 0, 0, 0);
+    if (due >= today) return;
+
+    var assignee = String(row[COL.ASSIGNEE - 1] || '').trim();
+    var taskName = String(row[COL.TASK_NAME - 1] || '');
+    var dueFmt   = Utilities.formatDate(due, 'Asia/Tokyo', 'M/d');
+    if (!assignee) assignee = '未割当';
+
+    if (!overdueByPerson[assignee]) overdueByPerson[assignee] = [];
+    overdueByPerson[assignee].push({ name: taskName, due: dueFmt });
+  });
+
+  var people = Object.keys(overdueByPerson);
+  if (!people.length) {
+    Logger.log('期限切れタスクなし');
+    return;
+  }
+
+  // メッセージ組み立て
+  var totalCount = 0;
+  var lines = [];
+  people.sort().forEach(function(person) {
+    var tasks = overdueByPerson[person];
+    totalCount += tasks.length;
+    var slackId = ASSIGNEE_SLACK_MAP[person.replace(/\s/g, '')];
+    var mention = slackId ? '<@' + slackId + '>' : person;
+    lines.push('');
+    lines.push(mention + '（' + tasks.length + '件）');
+    tasks.forEach(function(t) {
+      lines.push('　・' + t.name + '（期限: ' + t.due + '）');
+    });
+  });
+
+  var text = ':warning: *期限切れタスクが ' + totalCount + ' 件あります*' + lines.join('\n');
+
+  UrlFetchApp.fetch('https://slack.com/api/chat.postMessage', {
+    method: 'post',
+    headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json; charset=utf-8' },
+    payload: JSON.stringify({ channel: ALERT_CHANNEL_ID, text: text }),
+    muteHttpExceptions: true,
+  });
+
+  Logger.log('期限切れ通知送信: ' + totalCount + '件');
+}
+
 // トリガー設定（GASエディタから1度だけ手動実行）
-function setupAutoTemplatesTrigger() {
-  ScriptApp.getProjectTriggers()
-    .filter(function(t) { return t.getHandlerFunction() === 'runAutoTemplates'; })
-    .forEach(function(t) { ScriptApp.deleteTrigger(t); });
+function setupTriggers() {
+  // 既存トリガーをクリア
+  ScriptApp.getProjectTriggers().forEach(function(t) {
+    var fn = t.getHandlerFunction();
+    if (fn === 'runAutoTemplates' || fn === 'notifyOverdueTasks') ScriptApp.deleteTrigger(t);
+  });
+  // オートメーション: 毎朝9時
   ScriptApp.newTrigger('runAutoTemplates')
     .timeBased().atHour(9).everyDays(1).inTimezone('Asia/Tokyo').create();
-  Logger.log('オートメーション自動実行トリガーを設定しました（毎朝9時）');
+  // 期限切れ通知: 毎朝10時
+  ScriptApp.newTrigger('notifyOverdueTasks')
+    .timeBased().atHour(10).everyDays(1).inTimezone('Asia/Tokyo').create();
+  Logger.log('トリガー設定完了（オートメーション9時 / 期限切れ通知10時）');
 }
