@@ -443,14 +443,9 @@ function subtractBusinessDaysGas(date, days) {
 // ──────────────────────────────
 // Slack 業務報告投稿
 // ──────────────────────────────
-// 事前準備:
-//   GASエディタ → プロジェクトの設定 → スクリプトプロパティ に以下を追加:
-//     SLACK_BOT_TOKEN  = xoxb-XXXX（Bot User OAuth Token）
-//     SLACK_REPORT_MENTION = @report のユーザーID（例: U07XXXXXX）
-//   Slack App に必要な Bot Token Scopes:
-//     channels:history, chat:write
-// ──────────────────────────────
+// GASスクリプトプロパティに SLACK_BOT_TOKEN を設定すること
 var SLACK_CHANNEL_ID = 'C071F406H5H';
+var SLACK_REPORT_MENTION = '<!subteam^S0ANAB1BZA7>'; // @report ユーザーグループ
 
 function postSlackReport(data) {
   var token = PropertiesService.getScriptProperties().getProperty('SLACK_BOT_TOKEN');
@@ -463,12 +458,10 @@ function postSlackReport(data) {
 
   // チャンネル履歴から当日の業務報告スレッドを検索
   var threadTs = findReportThread(token, reportDate);
-  if (!threadTs) throw new Error('本日の業務報告スレッド（@assistant 投稿）が見つかりません。15時以降に再試行してください');
+  if (!threadTs) throw new Error('本日の業務報告スレッド（業務報告bot投稿）が見つかりません。15時以降に再試行してください');
 
   // @report メンション付きでスレッドに返信
-  var mentionId = PropertiesService.getScriptProperties().getProperty('SLACK_REPORT_MENTION') || '';
-  var mentionPrefix = mentionId ? '<@' + mentionId + '>\n' : '';
-  var fullText = mentionPrefix + reportText;
+  var fullText = SLACK_REPORT_MENTION + '\n' + reportText;
 
   var postRes = UrlFetchApp.fetch('https://slack.com/api/chat.postMessage', {
     method: 'post',
@@ -509,11 +502,12 @@ function findReportThread(token, dateStr) {
     return null;
   }
 
-  // 「業務報告」を含むメッセージのtsを返す（@assistant の投稿）
+  // 業務報告botの投稿（B0A0C056AMU）から「業務報告」を含むメッセージのtsを返す
   var msgs = json.messages || [];
   for (var i = 0; i < msgs.length; i++) {
-    if (msgs[i].text && msgs[i].text.indexOf('業務報告') >= 0) {
-      return msgs[i].ts;
+    var m = msgs[i];
+    if (m.text && m.text.indexOf('業務報告') >= 0 && m.bot_id === 'B0A0C056AMU') {
+      return m.ts;
     }
   }
   return null;
