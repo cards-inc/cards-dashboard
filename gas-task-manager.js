@@ -366,18 +366,24 @@ function runAutoTemplates() {
   templates.forEach(function(tmpl) {
     if (!tmpl.nextDue) return;
     var nextDue = new Date(tmpl.nextDue); nextDue.setHours(0,0,0,0);
-    if (nextDue > today) return;
+
+    // ECイベント連動: イベント開始の7営業日前にタスク生成
+    // 通常繰り返し: nextDue当日に生成
+    var generateDate = tmpl.ecEventLabel
+      ? subtractBusinessDaysGas(new Date(nextDue), 7)
+      : new Date(nextDue);
+    if (generateDate > today) return;
 
     var lastGen = tmpl.lastGenerated ? new Date(tmpl.lastGenerated) : null;
     if (lastGen) { lastGen.setHours(0,0,0,0); }
-    if (lastGen && lastGen >= nextDue) return;
+    if (lastGen && lastGen >= generateDate) return;
 
     var cats = Array.isArray(tmpl.categories) ? tmpl.categories : [];
     var dueDate = tmpl.ecEventLabel
       ? subtractBusinessDaysGas(new Date(nextDue), 2)
       : (function(){ var d = new Date(nextDue); d.setDate(d.getDate() + (tmpl.dueDays||7)); return d; })();
     var entryDate = tmpl.ecEventLabel
-      ? subtractBusinessDaysGas(new Date(nextDue), 5)
+      ? generateDate
       : new Date(nextDue);
 
     cats.forEach(function(cat) {
@@ -395,7 +401,7 @@ function runAutoTemplates() {
       }));
     });
 
-    autoSheet.getRange(tmpl._row, AUTO_COL.LAST_GENERATED).setValue(nextDue);
+    autoSheet.getRange(tmpl._row, AUTO_COL.LAST_GENERATED).setValue(generateDate);
 
     var newNextDue = tmpl.ecEventLabel
       ? getNextEcEventDateFromSheet(tmpl.ecEventLabel, nextDue, ecEvents)
