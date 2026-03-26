@@ -694,9 +694,16 @@ tbody td { padding: 11px 16px; font-size: 13px; vertical-align: middle; }
       <div class="section chart-card">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:10px">
           <h3 style="margin:0">業務報告プレビュー</h3>
-          <button class="clear-btn" onclick="buildPreview()">プレビュー更新</button>
+          <div style="display:flex;gap:8px;align-items:center">
+            <button class="clear-btn" onclick="buildPreview()">プレビュー更新</button>
+            <button id="slackPostBtn" onclick="postToSlack()" style="background:#4a154b;color:#fff;border:none;border-radius:8px;padding:7px 16px;font-size:13px;cursor:pointer;font-family:inherit;font-weight:600;display:inline-flex;align-items:center;gap:6px;white-space:nowrap">
+              <svg width="16" height="16" viewBox="0 0 123 123" fill="none"><path d="M25.8 77.6a12.9 12.9 0 1 1-12.9-12.9h12.9v12.9zm6.5 0a12.9 12.9 0 1 1 25.8 0v32.3a12.9 12.9 0 1 1-25.8 0V77.6z" fill="#E01E5A"/><path d="M45.2 25.8a12.9 12.9 0 1 1 12.9-12.9v12.9H45.2zm0 6.5a12.9 12.9 0 1 1 0 25.8H12.9a12.9 12.9 0 1 1 0-25.8h32.3z" fill="#36C5F0"/><path d="M97 45.2a12.9 12.9 0 1 1 12.9 12.9H97V45.2zm-6.5 0a12.9 12.9 0 1 1-25.8 0V12.9a12.9 12.9 0 1 1 25.8 0v32.3z" fill="#2EB67D"/><path d="M77.6 97a12.9 12.9 0 1 1-12.9 12.9V97h12.9zm0-6.5a12.9 12.9 0 1 1 0-25.8h32.3a12.9 12.9 0 1 1 0 25.8H77.6z" fill="#ECB22E"/></svg>
+              Slack投稿
+            </button>
+          </div>
         </div>
         <pre id="jikkoPreviewText" style="background:var(--surface2);border-radius:8px;padding:14px;font-size:13px;line-height:1.8;white-space:pre-wrap;word-break:break-word;font-family:inherit;min-height:80px"></pre>
+        <div id="slackPostStatus" style="margin-top:8px;font-size:12px;min-height:18px"></div>
       </div>
 
     </div><!-- /jikkoReportArea -->
@@ -2953,6 +2960,34 @@ document.addEventListener('input', e => {
   if (e.target.matches('[data-done-hours],[data-done-comment],[data-wip-comment],#jikkoExtraText'))
     buildPreview();
 });
+
+// Slack投稿
+async function postToSlack() {
+  const btn = document.getElementById('slackPostBtn');
+  const statusEl = document.getElementById('slackPostStatus');
+  const text = document.getElementById('jikkoPreviewText')?.textContent?.trim();
+  if (!text) { statusEl.innerHTML = '<span style="color:var(--danger)">プレビューが空です。先にサマリーを生成してください</span>'; return; }
+  if (!GAS_URL) { statusEl.innerHTML = '<span style="color:var(--danger)">GAS URLが未設定です</span>'; return; }
+
+  const dateVal = document.getElementById('jikkoDate')?.value;
+  if (!dateVal) { statusEl.innerHTML = '<span style="color:var(--danger)">日付を選択してください</span>'; return; }
+
+  if (!confirm('この内容をSlackに投稿しますか？')) return;
+
+  btn.disabled = true;
+  btn.style.opacity = '0.6';
+  statusEl.innerHTML = '<span style="color:var(--text2)">Slackに投稿中...</span>';
+
+  try {
+    await gasJsonp('postSlack', { text: text, date: dateVal });
+    statusEl.innerHTML = '<span style="color:var(--success,#16a34a)">Slackに投稿しました</span>';
+  } catch(e) {
+    statusEl.innerHTML = '<span style="color:var(--danger)">' + e.message + '</span>';
+  } finally {
+    btn.disabled = false;
+    btn.style.opacity = '1';
+  }
+}
 
 
 loadData();

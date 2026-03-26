@@ -93,6 +93,9 @@ function doGet(e) {
       var data = JSON.parse(e.parameter.data || '{}');
       replaceEcEvents(data);
       result = { status: 'ok' };
+    } else if (action === 'postSlack') {
+      var data = JSON.parse(e.parameter.data || '{}');
+      result = postSlackReport(data);
     } else {
       result = { status: 'error', message: '不明なアクション: ' + action };
     }
@@ -435,6 +438,85 @@ function subtractBusinessDaysGas(date, days) {
     if (dow !== 0 && dow !== 6) count++;
   }
   return d;
+}
+
+// ──────────────────────────────
+// Slack 業務報告投稿
+// ──────────────────────────────
+// 事前準備:
+//   GASエディタ → プロジェクトの設定 → スクリプトプロパティ に以下を追加:
+//     SLACK_BOT_TOKEN  = xoxb-XXXX（Bot User OAuth Token）
+//     SLACK_REPORT_MENTION = @report のユーザーID（例: U07XXXXXX）
+//   Slack App に必要な Bot Token Scopes:
+//     channels:history, chat:write
+// ──────────────────────────────
+var SLACK_CHANNEL_ID = 'C071F406H5H';
+
+function postSlackReport(data) {
+  var token = PropertiesService.getScriptProperties().getProperty('SLACK_BOT_TOKEN');
+  if (!token) throw new Error('SLACK_BOT_TOKEN がスクリプトプロパティに設定されていません');
+
+  var reportText = data.text || '';
+  if (!reportText.trim()) throw new Error('投稿テキストが空です');
+
+  var reportDate = data.date || Utilities.formatDate(new Date(), 'Asia/Tokyo', 'yyyy-MM-dd');
+
+  // チャンネル履歴から当日の業務報告スレッドを検索
+  var threadTs = findReportThread(token, reportDate);
+  if (!threadTs) throw new Error('本日の業務報告スレッド（@assistant 投稿）が見つかりません。15時以降に再試行してください');
+
+  // @report メンション付きでスレッドに返信
+  var mentionId = PropertiesService.getScriptProperties().getProperty('SLACK_REPORT_MENTION') || '';
+  var mentionPrefix = mentionId ? '<@' + mentionId + '>\n' : '';
+  var fullText = mentionPrefix + reportText;
+
+  var postRes = UrlFetchApp.fetch('https://slack.com/api/chat.postMessage', {
+    method: 'post',
+    headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json; charset=utf-8' },
+    payload: JSON.stringify({
+      channel: SLACK_CHANNEL_ID,
+      thread_ts: threadTs,
+      text: fullText,
+    }),
+    muteHttpExceptions: true,
+  });
+  var postJson = JSON.parse(postRes.getContentText());
+  if (!postJson.ok) throw new Error('Slack投稿エラー: ' + (postJson.error || '不明'));
+
+  return { status: 'ok', ts: postJson.ts, thread_ts: threadTs };
+}
+
+function findReportThread(token, dateStr) {
+  // dateStr = 'yyyy-MM-dd' → 当日 00:00〜23:59 (JST = UTC+9)
+  var d = new Date(dateStr + 'T00:00:00+09:00');
+  var oldest = Math.floor(d.getTime() / 1000);
+  var latest = oldest + 86400;
+
+  var url = 'https://slack.com/api/conversations.history'
+    + '?channel=' + SLACK_CHANNEL_ID
+    + '&oldest=' + oldest
+    + '&latest=' + latest
+    + '&limit=50';
+
+  var res = UrlFetchApp.fetch(url, {
+    method: 'get',
+    headers: { 'Authorization': 'Bearer ' + token },
+    muteHttpExceptions: true,
+  });
+  var json = JSON.parse(res.getContentText());
+  if (!json.ok) {
+    Logger.log('conversations.history error: ' + json.error);
+    return null;
+  }
+
+  // 「業務報告」を含むメッセージのtsを返す（@assistant の投稿）
+  var msgs = json.messages || [];
+  for (var i = 0; i < msgs.length; i++) {
+    if (msgs[i].text && msgs[i].text.indexOf('業務報告') >= 0) {
+      return msgs[i].ts;
+    }
+  }
+  return null;
 }
 
 // トリガー設定（GASエディタから1度だけ手動実行）
