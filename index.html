@@ -2358,8 +2358,10 @@ function completeExpandTask(taskIdx) {
 function deleteExpandTask(taskIdx) {
   const t = allTasks[taskIdx];
   if (!confirm(`「${t.taskName}」を削除しますか？`)) return;
+  // 編集バーを保存せずに強制クリア
+  editingSet.clear();
+  document.querySelectorAll('tr.inline-editing').forEach(tr => tr.classList.remove('inline-editing'));
   allTasks.splice(taskIdx, 1);
-  closeAllEditBars();
   applyFilters();
   showBanner(`「${t.taskName}」を削除しました`, 'success');
   if (GAS_URL && t.no && !t._local) {
