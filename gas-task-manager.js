@@ -149,9 +149,11 @@ function deleteTask(data) {
   if (!taskNo) throw new Error('taskNo が指定されていません');
 
   var lastRow = sheet.getLastRow();
-  for (var r = 4; r <= lastRow; r++) {
-    if (Number(sheet.getRange(r, COL.NO).getValue()) === taskNo) {
-      sheet.deleteRow(r);
+  if (lastRow < 4) throw new Error('No.' + taskNo + ' の行が見つかりません');
+  var nos = sheet.getRange(4, COL.NO, lastRow - 3, 1).getValues();
+  for (var i = 0; i < nos.length; i++) {
+    if (Number(nos[i][0]) === taskNo) {
+      sheet.deleteRow(i + 4);
       return { status: 'ok', no: taskNo };
     }
   }
@@ -167,12 +169,11 @@ function editTask(data) {
   if (!taskNo) throw new Error('taskNo が指定されていません');
 
   var lastRow = sheet.getLastRow();
+  if (lastRow < 4) throw new Error('No.' + taskNo + ' の行が見つかりません');
+  var nos = sheet.getRange(4, COL.NO, lastRow - 3, 1).getValues();
   var targetRow = -1;
-  for (var r = 4; r <= lastRow; r++) {
-    if (Number(sheet.getRange(r, COL.NO).getValue()) === taskNo) {
-      targetRow = r;
-      break;
-    }
+  for (var i = 0; i < nos.length; i++) {
+    if (Number(nos[i][0]) === taskNo) { targetRow = i + 4; break; }
   }
   if (targetRow === -1) throw new Error('No.' + taskNo + ' の行が見つかりません');
 
