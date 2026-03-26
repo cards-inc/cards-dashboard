@@ -803,29 +803,11 @@ tbody td { padding: 11px 16px; font-size: 13px; vertical-align: middle; }
         <label>担当者 <span style="color:var(--danger)">*</span></label>
         <select id="auto_assignee"><option value="">選択してください</option></select>
       </div>
-      <div class="modal-field" id="auto_dueDays_field">
-        <label>期限（生成日から何日後）</label>
-        <input type="number" id="auto_dueDays" value="7" min="0" max="365" placeholder="7">
-      </div>
-      <div class="modal-field full" id="auto_dueDays_ec" style="display:none">
-        <label>タスク期限</label>
-        <div style="padding:7px 10px;background:var(--primary-light);border:1px solid var(--border);border-radius:8px;font-size:12px;color:var(--primary);font-weight:600;line-height:1.8">期限: イベント開始2営業日前<br><span style="color:var(--text2);font-weight:400">記載日: イベント開始5営業日前</span></div>
-      </div>
-      <div class="modal-field full">
-        <label>対象カテゴリ（複数選択可）<span style="color:var(--danger)">*</span></label>
-        <div id="auto_cat_list" style="border:1px solid var(--border);border-radius:8px;max-height:110px;overflow-y:auto;padding:4px 0;background:var(--surface)">
-          <div style="padding:8px 12px;color:var(--text2);font-size:13px">読み込み中...</div>
-        </div>
-        <label style="display:flex;align-items:center;gap:6px;margin-top:5px;font-size:12px;cursor:pointer;color:var(--text2)">
-          <input type="checkbox" id="auto_cat_all" onchange="autoCatToggleAll(this.checked)"> すべて選択
-        </label>
-      </div>
-      <div class="modal-field full">
+      <div class="modal-field">
         <label>ECイベント連動（任意）</label>
-        <select id="auto_ecEvent" onchange="applyEcEventLink()" style="width:100%;border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-size:13px;background:var(--surface);color:var(--text);font-family:inherit">
+        <select id="auto_ecEvent" onchange="applyEcEventLink()">
           <option value="">連動しない</option>
         </select>
-        <div style="font-size:11px;color:var(--text2);margin-top:3px">選択すると次回イベント日を自動入力します</div>
       </div>
       <div class="modal-field" id="auto_repeat_field">
         <label>繰り返し</label>
@@ -841,9 +823,26 @@ tbody td { padding: 11px 16px; font-size: 13px; vertical-align: middle; }
         <label>繰り返し</label>
         <div style="padding:8px 10px;background:var(--primary-light);border:1px solid var(--border);border-radius:8px;font-size:13px;color:var(--primary);font-weight:600">イベントごと</div>
       </div>
+      <div class="modal-field" id="auto_dueDays_field">
+        <label>期限（生成日から何日後）</label>
+        <input type="number" id="auto_dueDays" value="7" min="0" max="365" placeholder="7">
+      </div>
+      <div class="modal-field" id="auto_dueDays_ec" style="display:none">
+        <label>タスク期限</label>
+        <div style="padding:8px 10px;background:var(--primary-light);border:1px solid var(--border);border-radius:8px;font-size:12px;color:var(--primary);font-weight:600;line-height:1.8">開始2営業日前<br><span style="color:var(--text2);font-weight:400;font-size:11px">記載日: 開始5営業日前</span></div>
+      </div>
       <div class="modal-field">
         <label>開始日（初回 / 次回イベント日）</label>
         <input type="date" id="auto_startDate">
+      </div>
+      <div class="modal-field full">
+        <label>対象カテゴリ <span style="color:var(--danger)">*</span></label>
+        <div id="auto_cat_list" style="border:1px solid var(--border);border-radius:8px;max-height:110px;overflow-y:auto;padding:4px 0;background:var(--surface)">
+          <div style="padding:8px 12px;color:var(--text2);font-size:13px">読み込み中...</div>
+        </div>
+        <label style="display:flex;align-items:center;gap:6px;margin-top:5px;font-size:12px;cursor:pointer;color:var(--text2)">
+          <input type="checkbox" id="auto_cat_all" onchange="autoCatToggleAll(this.checked)"> すべて選択
+        </label>
       </div>
     </div>
     <div class="modal-actions">
