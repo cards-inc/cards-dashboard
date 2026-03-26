@@ -115,12 +115,12 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Hiragino Sans', 'Yu Goth
 .ec-panel-head { padding: 12px 16px; font-size: 13px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
 .ec-auto-badge { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; padding: 2px 7px; border-radius: 99px; font-weight: 600; white-space: nowrap; }
 /* WBS EC event rows */
-.wbs-row-label.ec-head { background: #7c8fa1; color: #fff; font-size: 10px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; height: 22px; border-bottom: none; padding: 0 12px; flex-direction: row; align-items: center; justify-content: flex-start; gap: 6px; }
-.wbs-row-label.ec-rakuten { background: linear-gradient(135deg,#fff0f0,#fde8e8); color: #bf1515; font-weight: 800; font-size: 11px; border-bottom: 1px solid #ffc5c5; border-left: 4px solid #bf1515; padding-left: 10px; letter-spacing: .03em; justify-content: flex-start; }
-.wbs-row-label.ec-amazon  { background: linear-gradient(135deg,#fffbf0,#fff3d6); color: #92400e; font-weight: 800; font-size: 11px; border-bottom: 1px solid #fcd34d; border-left: 4px solid #f59e0b; padding-left: 10px; letter-spacing: .03em; justify-content: flex-start; }
+.wbs-row-label.ec-head { background: #7c8fa1; color: #fff; font-size: 10px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; height: 26px; border-bottom: none; padding: 0 14px; flex-direction: row; align-items: center; justify-content: flex-start; gap: 6px; }
+.wbs-row-label.ec-rakuten { background: linear-gradient(135deg,#fff0f0,#fde8e8); color: #bf1515; font-weight: 800; font-size: 11px; border-bottom: 2px solid #ffd6d6; border-left: 4px solid #bf1515; padding-left: 12px; letter-spacing: .03em; justify-content: flex-start; }
+.wbs-row-label.ec-amazon  { background: linear-gradient(135deg,#fffbf0,#fff3d6); color: #92400e; font-weight: 800; font-size: 11px; border-bottom: 2px solid #fce5a0; border-left: 4px solid #f59e0b; padding-left: 12px; letter-spacing: .03em; justify-content: flex-start; }
 .wbs-trow.ec-head    { background: #7c8fa1; border-bottom: 2px solid rgba(255,255,255,.15); }
-.wbs-trow.ec-rakuten { background: #fff7f7; border-bottom: 1px solid #ffc5c5; }
-.wbs-trow.ec-amazon  { background: #fffdf5; border-bottom: 1px solid #fcd34d; }
+.wbs-trow.ec-rakuten { background: #fff7f7; border-bottom: 2px solid #ffd6d6; }
+.wbs-trow.ec-amazon  { background: #fffdf5; border-bottom: 2px solid #fce5a0; }
 /* WBS event calendar */
 .wbs-bar { cursor: grab; user-select: none; }
 .wbs-bar.wbs-dragging { cursor: grabbing; opacity: .75; z-index: 10; }
@@ -3766,7 +3766,7 @@ function buildEcEventRows(days, COL_W) {
   const totalW = days.length * COL_W;
   const stored   = loadEcEvents();
   const withFive = [...stored, ...ecSpecialDayEvents(minD, maxD)];
-  const LANE_H   = 26;
+  const LANE_H   = 34;
   const gridBg   = `repeating-linear-gradient(to right,transparent 0,transparent ${COL_W-1}px,#e2e8f0 ${COL_W-1}px,#e2e8f0 ${COL_W}px)`;
 
   const buildOneRow = (evs, labelText, cssType) => {
@@ -3792,7 +3792,7 @@ function buildEcEventRows(days, COL_W) {
       const left  = b.si * COL_W;
       const width = (b.ei - b.si + 1) * COL_W;
       const top   = b.lane * LANE_H;
-      return `<div style="position:absolute;left:${left}px;top:${top}px;width:${width}px;height:${LANE_H}px;background:${b.color}28;border-left:3px solid ${b.color};border-right:3px solid ${b.color};box-sizing:border-box;cursor:pointer;overflow:visible" onclick="ecEventClick(${JSON.stringify(b.label)},${JSON.stringify(b.start)},${JSON.stringify(b.type)})" title="${esc(b.label)} ${b.start}〜${b.end||b.start}"><span style="position:absolute;left:5px;top:50%;transform:translateY(-50%);font-size:10px;font-weight:800;color:${b.color};white-space:nowrap;pointer-events:none;text-shadow:0 0 4px rgba(255,255,255,.9)">${esc(b.label)}</span></div>`;
+      return `<div style="position:absolute;left:${left}px;top:${top + 3}px;width:${width}px;height:${LANE_H - 6}px;background:${b.color}22;border-left:3px solid ${b.color};border-right:3px solid ${b.color};border-radius:4px;box-sizing:border-box;cursor:pointer;overflow:visible" onclick="ecEventClick(${JSON.stringify(b.label)},${JSON.stringify(b.start)},${JSON.stringify(b.type)})" title="${esc(b.label)} ${b.start}〜${b.end||b.start}"><span style="position:absolute;left:6px;top:50%;transform:translateY(-50%);font-size:11px;font-weight:700;color:${b.color};white-space:nowrap;pointer-events:none;text-shadow:0 0 5px rgba(255,255,255,.95)">${esc(b.label)}</span></div>`;
     }).join('');
 
     return {
@@ -3805,16 +3805,19 @@ function buildEcEventRows(days, COL_W) {
   const rakuten = buildOneRow(withFive.filter(e => e.type === 'rakuten'), '楽天市場', 'ec-rakuten');
   const amazon  = buildOneRow(withFive.filter(e => e.type === 'amazon'),  'Amazon',   'ec-amazon');
 
-  const HEAD_H = 30;
+  const HEAD_H = 28;
+  const SPACER_H = 6;
   const ecTotalW = totalW;
   const headSpan = `<div style="width:${ecTotalW}px;height:${HEAD_H}px;background:#7c8fa1;display:flex;align-items:center;padding:0 16px;color:#fff;font-size:11px;font-weight:800;letter-spacing:.12em">EC EVENTS</div>`;
   const headLabel    = `<div class="wbs-row-label ec-head" style="height:${HEAD_H}px">EC EVENTS</div>`;
   const headTimeline = `<div class="wbs-trow ec-head" style="height:${HEAD_H}px">${headSpan}</div>`;
+  const spacerLabel    = `<div style="height:${SPACER_H}px;background:var(--surface);border-bottom:2px solid var(--border)"></div>`;
+  const spacerTimeline = `<div style="height:${SPACER_H}px;width:${ecTotalW}px;background:var(--surface);border-bottom:2px solid var(--border)"></div>`;
 
   return {
-    labelHTML:    headLabel + rakuten.labelHTML + amazon.labelHTML,
-    timelineHTML: headTimeline + rakuten.timelineHTML + amazon.timelineHTML,
-    rowHeight:    HEAD_H + rakuten.rowHeight + amazon.rowHeight,
+    labelHTML:    headLabel + rakuten.labelHTML + amazon.labelHTML + spacerLabel,
+    timelineHTML: headTimeline + rakuten.timelineHTML + amazon.timelineHTML + spacerTimeline,
+    rowHeight:    HEAD_H + rakuten.rowHeight + amazon.rowHeight + SPACER_H,
   };
 }
 
