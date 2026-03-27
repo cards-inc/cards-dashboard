@@ -509,11 +509,11 @@ function findReportThread(token, dateStr) {
     return null;
   }
 
-  // 業務報告botの投稿（B0A0C056AMU）から「業務報告」を含むメッセージのtsを返す
+  // @report メンション + 「業務報告」を含むメッセージのtsを返す
   var msgs = json.messages || [];
   for (var i = 0; i < msgs.length; i++) {
     var m = msgs[i];
-    if (m.text && m.text.indexOf('業務報告') >= 0 && m.bot_id === 'B0A0C056AMU') {
+    if (m.text && m.text.indexOf('業務報告') >= 0 && m.text.indexOf('subteam^S0ANAB1BZA7') >= 0) {
       return m.ts;
     }
   }
