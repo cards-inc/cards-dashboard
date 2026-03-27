@@ -2983,7 +2983,7 @@ function loadDailyReport() {
 function buildPreview() {
   const person   = document.getElementById('jikkoPersonSel').value;
   const dateVal  = document.getElementById('jikkoDate').value;
-  const mention  = '';
+  const mention  = '@report';
   const dateLabel = dateVal
     ? new Date(dateVal).toLocaleDateString('ja-JP', {year:'numeric', month:'long', day:'numeric'})
     : '';

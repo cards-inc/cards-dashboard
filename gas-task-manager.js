@@ -467,8 +467,8 @@ function postSlackReport(data) {
   var threadTs = findReportThread(token, reportDate);
   if (!threadTs) throw new Error('本日の業務報告スレッド（業務報告bot投稿）が見つかりません。12時以降に再試行してください');
 
-  // @report メンション付きでスレッドに返信
-  var fullText = SLACK_REPORT_MENTION + '\n' + reportText;
+  // プレビューテキストの @report をSlackメンション形式に変換してスレッドに返信
+  var fullText = reportText.replace('@report', SLACK_REPORT_MENTION);
 
   var postRes = UrlFetchApp.fetch('https://slack.com/api/chat.postMessage', {
     method: 'post',
