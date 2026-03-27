@@ -602,7 +602,7 @@ function notifyOverdueTasks() {
     });
   });
 
-  var text = ':warning: *期限切れタスクが ' + totalCount + ' 件あります*' + lines.join('\n');
+  var text = ':warning: *期限切れタスクが ' + totalCount + ' 件あります*\n' + lines.join('\n');
 
   UrlFetchApp.fetch('https://slack.com/api/chat.postMessage', {
     method: 'post',
