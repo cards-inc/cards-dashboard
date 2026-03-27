@@ -174,6 +174,9 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Hiragino Sans', 'Yu Goth
 .person-progress-fill { height: 100%; border-radius: 99px; transition: width .5s ease; }
 .chart-card { background: var(--surface); border-radius: var(--radius); box-shadow: 0 2px 8px rgba(0,0,0,.08), 0 0 0 1px var(--border); padding: 20px; display: flex; flex-direction: column; }
 .chart-card h3 { font-size: 14px; font-weight: 700; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--border); color: var(--text); letter-spacing: .02em; }
+.chart-header-legend { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.chart-header-legend .leg-item { display: flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 400; color: var(--text2); }
+.chart-header-legend .leg-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
 .chart-wrap { overflow-y: auto; overflow-x: hidden; max-height: 420px; scrollbar-width: thin; flex: 1; }
 .chart-wrap::-webkit-scrollbar { width: 5px; }
 .chart-wrap::-webkit-scrollbar-thumb { background: #ccc; border-radius: 99px; }
@@ -535,11 +538,11 @@ tbody td { padding: 11px 16px; font-size: 13px; vertical-align: middle; }
         <div id="progressContent"></div>
       </div>
       <div class="chart-card">
-        <h3>担当者別タスク状況</h3>
+        <h3 style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px"><span>担当者別タスク状況</span><span id="personLegend" class="chart-header-legend"></span></h3>
         <div class="chart-wrap"><div class="chart-inner" id="personChartInner"><canvas id="personChart"></canvas></div></div>
       </div>
       <div class="chart-card">
-        <h3>カテゴリ別タスク状況</h3>
+        <h3 style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px"><span>カテゴリ別タスク状況</span><span id="categoryLegend" class="chart-header-legend"></span></h3>
         <div class="chart-wrap"><div class="chart-inner" id="categoryChartInner"><canvas id="categoryChart"></canvas></div></div>
       </div>
     </div>
@@ -1600,10 +1603,20 @@ function renderProgress(tasks) {
   });
 }
 
+function _buildLegendHTML() {
+  return STATUSES.map(s => `<span class="leg-item"><span class="leg-dot" style="background:${STATUS_COLORS[s]}"></span>${s}</span>`).join('');
+}
+
 function renderPersonChart(tasks) {
   const row = document.getElementById('chartsRow');
   if (!tasks.length) { row.style.display = 'none'; return; }
   row.style.display = '';
+
+  // ヘッダーレジェンド
+  const pLeg = document.getElementById('personLegend');
+  if (pLeg) pLeg.innerHTML = _buildLegendHTML();
+  const cLeg = document.getElementById('categoryLegend');
+  if (cLeg) cLeg.innerHTML = _buildLegendHTML();
 
   // 担当者ごとにステータス別集計
   const people = [...new Set(tasks.map(t => t.assignee).filter(Boolean))].sort();
@@ -1636,10 +1649,7 @@ function renderPersonChart(tasks) {
       responsive: true,
       maintainAspectRatio: false,
       plugins: {
-        legend: {
-          position: 'bottom',
-          labels: { font: { size: 12 }, padding: 14, usePointStyle: true, pointStyle: 'circle', boxWidth: 8 }
-        },
+        legend: { display: false },
         tooltip: {
           callbacks: {
             title: items => `${items[0].label}（合計: ${totals[items[0].label]}件）`,
@@ -1716,7 +1726,7 @@ function renderCategoryChart(tasks) {
       responsive: true,
       maintainAspectRatio: false,
       plugins: {
-        legend: { position: 'bottom', labels: { font: { size: 12 }, padding: 14, usePointStyle: true, pointStyle: 'circle', boxWidth: 8 } },
+        legend: { display: false },
         tooltip: {
           callbacks: {
             title: items => `${cats[items[0].dataIndex]}（合計: ${totals[cats[items[0].dataIndex]]}件）`,
