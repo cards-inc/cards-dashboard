@@ -542,8 +542,9 @@ var ASSIGNEE_SLACK_MAP = {
 };
 
 function notifyOverdueTasks() {
-  var token = PropertiesService.getScriptProperties().getProperty('SLACK_BOT_TOKEN');
-  if (!token) { Logger.log('SLACK_BOT_TOKEN が未設定'); return; }
+  var token = PropertiesService.getScriptProperties().getProperty('SLACK_ALERT_BOT_TOKEN')
+           || PropertiesService.getScriptProperties().getProperty('SLACK_BOT_TOKEN');
+  if (!token) { Logger.log('SLACK_ALERT_BOT_TOKEN / SLACK_BOT_TOKEN が未設定'); return; }
 
   var sheet = getSheetByGid(TASK_SHEET_GID);
   var lastRow = sheet.getLastRow();
