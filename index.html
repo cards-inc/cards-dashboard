@@ -227,6 +227,26 @@ tbody td { padding: 11px 16px; font-size: 13px; vertical-align: middle; }
 .overdue-alert-item .oa-due { color: #ef4444; font-weight: 600; font-size: 11px; white-space: nowrap; }
 .overdue-alert-item .oa-days { background: #ef4444; color: #fff; padding: 2px 7px; border-radius: 10px; font-size: 10px; font-weight: 700; white-space: nowrap; }
 
+/* チャット監視セクション */
+.chat-monitor { margin-bottom: 16px; }
+.chat-monitor h3 { font-size: 15px; font-weight: 700; margin: 0 0 12px; display: flex; align-items: center; gap: 8px; }
+.chat-monitor-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 10px; }
+.chat-mon-card { display: flex; align-items: center; gap: 12px; background: var(--surface,#fff); border: 1px solid var(--border,#e2e8f0); border-radius: 10px; padding: 12px 16px; transition: box-shadow .15s; }
+.chat-mon-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,.06); }
+.chat-mon-card.cm-danger { border-color: #fca5a5; background: #fef2f2; }
+.chat-mon-card.cm-warning { border-color: #fcd34d; background: #fffbeb; }
+.chat-mon-card.cm-ok { border-color: #86efac; background: #f0fdf4; }
+.chat-mon-card.cm-error { border-color: #d4d4d8; background: #f4f4f5; }
+.cm-icon { font-size: 22px; flex-shrink: 0; }
+.cm-info { flex: 1; min-width: 0; }
+.cm-store { font-size: 13px; font-weight: 600; color: var(--text,#1e293b); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cm-meta { font-size: 11px; color: var(--text2,#64748b); margin-top: 2px; }
+.cm-badge { padding: 3px 9px; border-radius: 12px; font-size: 11px; font-weight: 700; white-space: nowrap; flex-shrink: 0; }
+.cm-badge.cm-b-danger  { background: #ef4444; color: #fff; }
+.cm-badge.cm-b-warning { background: #f59e0b; color: #fff; }
+.cm-badge.cm-b-ok      { background: #10b981; color: #fff; }
+.cm-badge.cm-b-error   { background: #94a3b8; color: #fff; }
+
 .no-data { text-align: center; padding: 60px 20px; color: var(--text2); }
 
 /* 業務報告タブ */
@@ -560,6 +580,9 @@ tbody td { padding: 11px 16px; font-size: 13px; vertical-align: middle; }
         <div class="chart-wrap"><div class="chart-inner" id="categoryChartInner"><canvas id="categoryChart"></canvas></div></div>
       </div>
     </div>
+
+    <!-- チャット監視 -->
+    <div id="chatMonitorSection" class="section" style="display:none"></div>
 
     <!-- 期限超過アラート -->
     <div id="overdueAlert" class="section" style="display:none"></div>
@@ -996,6 +1019,7 @@ const GID = '235656541';
 const SETTING_GID = '939802887';
 const EC_EVENTS_GID = '365675538';
 const AUTOMATION_GID = '1898911664';
+const CHAT_MONITOR_GID = '';  // ★「チャット監視」シートのGIDをここに設定
 const STATUSES = ['対応完了', '確認中', '対応中', '未着手'];
 const STATUS_COLORS = { '対応完了': '#10b981', '確認中': '#6366f1', '対応中': '#f59e0b', '未着手': '#94a3b8' };
 
@@ -1114,6 +1138,9 @@ function loadData(silent) {
   // Settingシートも並行取得（GID設定済みの場合）
   if (SETTING_GID) loadSettings();
   else console.info('[Setting] SETTING_GID未設定。SettingシートのGIDをSETTING_GIDに設定してください。');
+
+  // チャット監視シート取得
+  if (CHAT_MONITOR_GID) loadChatMonitor();
 }
 
 // ──────────────────────────────
@@ -1453,8 +1480,8 @@ function applyFilters() {
   // タスクタブが表示中のときだけ重い描画を実行
   const taskTabVisible = document.getElementById('tab-dashboard')?.classList.contains('active');
   renderKPI(baseTasks);
-  renderOverdueAlert(baseTasks);
   if (taskTabVisible) {
+    renderOverdueAlert(baseTasks);
     renderPersonChart(tasks);
     renderProgress(tasks);
     renderCategoryChart(tasks);
@@ -1512,6 +1539,85 @@ function setFilter(type, val) {
   if (type === 'cat')    document.getElementById('categoryFilter').value = val;
   if (type === 'status') document.getElementById('statusFilter').value  = val;
   applyFilters();
+}
+
+// ──────────────────────────────
+// チャット監視
+// ──────────────────────────────
+let chatMonitorData = [];
+function loadChatMonitor() {
+  if (!CHAT_MONITOR_GID) return;
+  fetchGviz(CHAT_MONITOR_GID).then(table => {
+    const cols = table.cols || [];
+    const rows = table.rows || [];
+    chatMonitorData = rows.map(r => {
+      const v = (i) => r.c && r.c[i] && r.c[i].v != null ? r.c[i].v : '';
+      const lastUpdate = r.c && r.c[2] && r.c[2].v ? new Date(
+        typeof r.c[2].v === 'string' && r.c[2].v.startsWith('Date(')
+          ? r.c[2].v.replace('Date(','new Date(') // gviz date
+          : r.c[2].v
+      ) : null;
+      // gviz returns Date(y,m,d,h,m,s) format
+      let lastDate = null;
+      if (r.c && r.c[2] && r.c[2].v) {
+        const raw = r.c[2].v;
+        if (typeof raw === 'string' && raw.startsWith('Date(')) {
+          const nums = raw.slice(5, -1).split(',').map(Number);
+          lastDate = new Date(nums[0], nums[1], nums[2], nums[3]||0, nums[4]||0, nums[5]||0);
+        } else if (raw instanceof Date) {
+          lastDate = raw;
+        } else {
+          lastDate = new Date(raw);
+        }
+        if (isNaN(lastDate)) lastDate = null;
+      }
+      return {
+        store: String(v(0)),
+        tool: String(v(1)),
+        lastUpdate: lastDate,
+        bizDays: Number(v(3)) || 0,
+        status: String(v(4)),
+        assignee: String(v(5)),
+      };
+    }).filter(d => d.store);
+    renderChatMonitor();
+  }).catch(e => console.warn('チャット監視データ取得失敗:', e));
+}
+
+function renderChatMonitor() {
+  const el = document.getElementById('chatMonitorSection');
+  if (!chatMonitorData.length) { el.style.display = 'none'; return; }
+
+  const alertItems = chatMonitorData.filter(d => d.status === '危険' || d.status === '警告');
+  const okItems = chatMonitorData.filter(d => d.status === '正常');
+  const errorItems = chatMonitorData.filter(d => d.status === 'エラー' || d.status === 'データなし');
+
+  const statusIcon = s => s === '危険' ? '🔴' : s === '警告' ? '🟡' : s === '正常' ? '🟢' : '⚪';
+  const cardClass = s => s === '危険' ? 'cm-danger' : s === '警告' ? 'cm-warning' : s === '正常' ? 'cm-ok' : 'cm-error';
+  const badgeClass = s => s === '危険' ? 'cm-b-danger' : s === '警告' ? 'cm-b-warning' : s === '正常' ? 'cm-b-ok' : 'cm-b-error';
+
+  const fmtDate = d => d ? `${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}` : '—';
+
+  const renderCard = d => `
+    <div class="chat-mon-card ${cardClass(d.status)}">
+      <span class="cm-icon">${statusIcon(d.status)}</span>
+      <div class="cm-info">
+        <div class="cm-store">${d.store}</div>
+        <div class="cm-meta">${d.tool} ・ ${d.assignee || '—'} ・ 最終: ${fmtDate(d.lastUpdate)}</div>
+      </div>
+      <span class="cm-badge ${badgeClass(d.status)}">${d.status === '正常' ? '正常' : d.bizDays ? d.bizDays + '営業日' : d.status}</span>
+    </div>`;
+
+  const sorted = [...alertItems.sort((a,b) => b.bizDays - a.bizDays), ...errorItems, ...okItems];
+
+  el.style.display = '';
+  el.innerHTML = `
+    <div class="chat-monitor">
+      <h3>💬 チャット稼働状況${alertItems.length ? ` <span style="color:#ef4444;font-size:13px">（${alertItems.length}件 未稼働）</span>` : ''}</h3>
+      <div class="chat-monitor-grid">
+        ${sorted.map(renderCard).join('')}
+      </div>
+    </div>`;
 }
 
 // ──────────────────────────────
