@@ -213,6 +213,20 @@ tbody td { padding: 11px 16px; font-size: 13px; vertical-align: middle; }
 .due-overdue { color: var(--danger); font-weight: 600; }
 .due-soon    { color: var(--warning); font-weight: 600; }
 
+/* 期限超過アラートバナー */
+.overdue-alert { background: linear-gradient(135deg, #fef2f2, #fee2e2); border: 1px solid #fca5a5; border-radius: 12px; padding: 16px 20px; margin-bottom: 16px; }
+.overdue-alert-header { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; cursor: pointer; user-select: none; }
+.overdue-alert-header h3 { margin: 0; font-size: 14px; font-weight: 700; color: #991b1b; display: flex; align-items: center; gap: 6px; }
+.overdue-alert-toggle { font-size: 11px; color: #b91c1c; transition: transform .2s; }
+.overdue-alert-toggle.open { transform: rotate(90deg); }
+.overdue-alert-list { display: flex; flex-direction: column; gap: 6px; }
+.overdue-alert-item { display: flex; align-items: center; gap: 10px; background: #fff; border: 1px solid #fecaca; border-radius: 8px; padding: 8px 14px; font-size: 12px; cursor: pointer; transition: background .15s, box-shadow .15s; }
+.overdue-alert-item:hover { background: #fef2f2; box-shadow: 0 1px 4px rgba(239,68,68,.15); }
+.overdue-alert-item .oa-assignee { background: #fee2e2; color: #991b1b; padding: 2px 8px; border-radius: 10px; font-weight: 600; font-size: 11px; white-space: nowrap; }
+.overdue-alert-item .oa-task { flex: 1; color: #1e293b; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.overdue-alert-item .oa-due { color: #ef4444; font-weight: 600; font-size: 11px; white-space: nowrap; }
+.overdue-alert-item .oa-days { background: #ef4444; color: #fff; padding: 2px 7px; border-radius: 10px; font-size: 10px; font-weight: 700; white-space: nowrap; }
+
 .no-data { text-align: center; padding: 60px 20px; color: var(--text2); }
 
 /* 業務報告タブ */
@@ -525,6 +539,9 @@ tbody td { padding: 11px 16px; font-size: 13px; vertical-align: middle; }
         <button class="clear-btn" onclick="clearFilters()">クリア</button>
       </div>
     </div>
+
+    <!-- 期限超過アラート -->
+    <div id="overdueAlert" class="section" style="display:none"></div>
 
     <!-- KPI -->
     <div class="section kpi-grid" id="kpiGrid">
@@ -1436,6 +1453,7 @@ function applyFilters() {
   // タスクタブが表示中のときだけ重い描画を実行
   const taskTabVisible = document.getElementById('tab-dashboard')?.classList.contains('active');
   renderKPI(baseTasks);
+  renderOverdueAlert(baseTasks);
   if (taskTabVisible) {
     renderPersonChart(tasks);
     renderProgress(tasks);
@@ -1483,6 +1501,42 @@ function setFilter(type, val) {
   if (type === 'cat')    document.getElementById('categoryFilter').value = val;
   if (type === 'status') document.getElementById('statusFilter').value  = val;
   applyFilters();
+}
+
+// ──────────────────────────────
+// 期限超過アラートバナー
+// ──────────────────────────────
+let overdueAlertOpen = true;
+function renderOverdueAlert(tasks) {
+  const today = new Date(); today.setHours(0,0,0,0);
+  const overdueTasks = tasks
+    .filter(t => t.dueDate && t.dueDate < today && t.status !== '対応完了')
+    .sort((a, b) => a.dueDate - b.dueDate);
+
+  const el = document.getElementById('overdueAlert');
+  if (!overdueTasks.length) { el.style.display = 'none'; return; }
+
+  const fmtDate = d => `${d.getMonth()+1}/${d.getDate()}`;
+  const diffDays = d => Math.floor((today - d) / 86400000);
+
+  el.style.display = '';
+  el.innerHTML = `
+    <div class="overdue-alert">
+      <div class="overdue-alert-header" onclick="overdueAlertOpen=!overdueAlertOpen;document.querySelector('.overdue-alert-list').style.display=overdueAlertOpen?'':'none';document.querySelector('.overdue-alert-toggle').classList.toggle('open',overdueAlertOpen)">
+        <h3>⚠ 期限超過タスク（${overdueTasks.length}件）</h3>
+        <span class="overdue-alert-toggle${overdueAlertOpen?' open':''}">▶</span>
+      </div>
+      <div class="overdue-alert-list" style="display:${overdueAlertOpen?'':'none'}">
+        ${overdueTasks.map(t => `
+          <div class="overdue-alert-item" onclick="kpiClick('overdue')">
+            <span class="oa-assignee">${t.assignee||'未割当'}</span>
+            <span class="oa-task">${t.taskName||'(無題)'}</span>
+            <span class="oa-due">${fmtDate(t.dueDate)}</span>
+            <span class="oa-days">${diffDays(t.dueDate)}日超過</span>
+          </div>
+        `).join('')}
+      </div>
+    </div>`;
 }
 
 // ──────────────────────────────
