@@ -1467,6 +1467,17 @@ function kpiClick(filter) {
   applyFilters();
 }
 
+function filterByOverdueTask(no) {
+  const task = allTasks.find(t => t.no === no);
+  if (!task) return;
+  const input = document.getElementById('searchInput');
+  input.value = task.taskName;
+  kpiFilter = null;
+  applyFilters();
+  const tableWrap = document.getElementById('tableWrap');
+  if (tableWrap) tableWrap.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
 function clearFilters() {
   taskExcluded.person.clear();
   taskExcluded.cat.clear();
@@ -1528,7 +1539,7 @@ function renderOverdueAlert(tasks) {
       </div>
       <div class="overdue-alert-list" style="display:${overdueAlertOpen?'':'none'}">
         ${overdueTasks.map(t => `
-          <div class="overdue-alert-item" onclick="kpiClick('overdue')">
+          <div class="overdue-alert-item" onclick="filterByOverdueTask(${t.no})">
             <span class="oa-assignee">${t.assignee||'未割当'}</span>
             <span class="oa-task">${t.taskName||'(無題)'}</span>
             <span class="oa-due">${fmtDate(t.dueDate)}</span>
